@@ -45,7 +45,10 @@ detect_machine(){
 
 
 program=$1
-if [ "$program" = "" ]; then program="./chatnet.c"; fi
+if [ "$program" = "" ]; then 
+	program="./chatnet.c"; 
+	prognAutoSet="true"
+fi
 
 if [ ! -f "$program" ]; then
 	echo "$err Main program $program doesn't exist."
@@ -88,7 +91,9 @@ main() {
 			
 			cp ./$exenfull ./chatnet_role_change/
 			echo "$info Program copied to ./chatnet_role_change";
-			#./$exenfull
+			#--------------------
+			./$exenfull
+			#--------------------
 		
 		else echo "$err Program not compiled"
 		fi
