@@ -7,6 +7,10 @@ your desired variable. And run: `$ php net.php`. This is the simplest easiest wa
 sudo chown -R www-data:www-data /var/www/html/
 # Might crash the server, if it's already running.
 # And may continuously display the last msg, if someone was doing --read_AllMsg.
+
+
+Will never work: ln -s /home/midn/terminal.chatnet/net.php /var/www/html/net.php.
+Because in that way, apache2(www-data) will need 'execute' rights to ALL THE WAY to original net.php. Understand that!!
 */
 
 $Server = new Server();
