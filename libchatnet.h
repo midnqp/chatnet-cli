@@ -43,9 +43,9 @@ size_t curl_writefunc_callback(void *p, size_t size, size_t count, struct string
 }
 
 
-//const char *NETADDR = "https://yuva.life/wp-admin/net.php";
+const char *NETADDR = "http://yuva.life/wp-admin/net.php";
 // NETADDR could be any address where `net.php` is stored.
-const char* NETADDR = "http://localhost/network.php";
+//const char* NETADDR = "http://localhost/network.php";
 char* __performCurl__(const char *PostData) {
 	curl_global_init(CURL_GLOBAL_DEFAULT);
 	CURL *curl = curl_easy_init();
