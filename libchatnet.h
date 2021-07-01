@@ -32,30 +32,6 @@ char* read_shkey(const char* uRecv) {
 }
 
 
-void init_chatnet() {
-	if (! dir_exists(cdir)) mkdir(cdir, 0755);
-
-
-	if (! file_exists(uSendDir)) {
-		char* uSend = input("[Init] Enter username: ");
-		file_write(uSendDir, uSend);
-	}
-
-
-	//if (! file_exists(uRecvAllFn)) file_write(uRecvAllFn, "");
-
-
-	char* activeAll = serverComm(str_addva("--read_active ", read_uSend()));
-	file_write(activeFn, activeAll);
-	printf("%s--------%sACTIVE CHATHET USERS%s--------%s\n", BLU, GRN, BLU, R0);
-	printf("%s", activeAll);
-	printf("%s------------------------------------%s\n", BLU, R0);
-
-
-	//TODO ASCII Art
-}
-
-
 size_t curl_writefunc_callback(void *p, size_t size, size_t count, struct string *cResp) {
 	size_t newLen = cResp->len + size*count;
 	cResp->str = (char*)realloc(cResp->str, newLen + 1);
@@ -69,7 +45,7 @@ size_t curl_writefunc_callback(void *p, size_t size, size_t count, struct string
 
 //const char *NETADDR = "https://yuva.life/wp-admin/net.php";
 // NETADDR could be any address where `net.php` is stored.
-const char* NETADDR = "http://localhost/net.php";
+const char* NETADDR = "http://localhost/network.php";
 char* __performCurl__(const char *PostData) {
 	curl_global_init(CURL_GLOBAL_DEFAULT);
 	CURL *curl = curl_easy_init();
@@ -140,6 +116,13 @@ void read_uRecvAll() {
 }
 
 
+char* read_active() {
+	char* activeAll = serverComm(str_addva("--read_active ", read_uSend()));
+	file_write(activeFn, activeAll);
+	return activeAll;
+}
+
+
 void write_chatroom(const char* uRecv) {
 	//printf("----libchatnet.h: Writing chatroom----\n");
 	char* uSend = read_uSend();
@@ -167,4 +150,6 @@ void write_exit() {
 	file_remove(readingAlreadyFn);
 
 	serverComm(str_addva("--write_exit ", read_uSend()));
+	printf("%s Exited chatnet network.\n", info);
+	exit(0);
 }
