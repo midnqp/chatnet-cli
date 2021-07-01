@@ -147,7 +147,7 @@ class Server {
 		$activeFn = $this->dir . '/_active_';
 		
 		if (! file_exists($this->dir)) mkdir($this->dir);
-		if (! file_exists($activeFn)) file_put_contents($activeFn, '');
+		if (! file_exists($activeFn)) file_put_contents($activeFn, "");
 		
 		$GLOBALS['activeFn'] = $activeFn;
 	}
