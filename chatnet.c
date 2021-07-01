@@ -2,6 +2,7 @@
 
 #define CHATNETKW "chatnet"
 #define chatnet str_addva(MGN, "[chatnet]", R0)
+#define exmp str_addva(MGN, "[Example]", R0)
 
 	//	printf();
 	//	printf("%s------------------------------------%s\n", BLU, R0);
@@ -13,7 +14,7 @@ void __printfAllCmds__() {printf(
 	"write       Starts input prompt for writing messages\n"
 	"exit        Exits from the Chatnet network\n"
 	"\n"
-	"[Example]\n"
+	"%s\n"
 	"%s >> chatnet list\n"
 	"%s >> chatnet read\n"
 	"%s >> chatnet write\n"
@@ -27,7 +28,7 @@ void __printfAllCmds__() {printf(
 
 
 
-
+	, exmp
 	, read_uSend()
 	, read_uSend()
 	, read_uSend()
@@ -61,16 +62,15 @@ void chatnet_read() {
 	notice("read_AllMsg");
 	file_write(readingAlreadyFn, "");
 	while (1) {
+		if (!file_exists(readingAlreadyFn)) exit(0);
+		
 		char* MsgAll = read_AllMsg();
 		if (str_eq(MsgAll, "")) {	
 			//failed, no msg recvd
 			sleep(1);
 			//printf("--nothing received\n");
 		}
-		else {
-			printf("%s", MsgAll);
-			strcpy(MsgAll, "");
-		}
+		else printf("%s", MsgAll);
 	}
 }
 
@@ -105,10 +105,11 @@ void chatnet_write() {
 
 
 void chatnet_execCmd(char* msgText) {
+	read_active();
 	int lenKeyword = (int)strlen(CHATNETKW);
 	//int nextSpace = str_index(msgText, " ", lenKeyword + 1, strlen(msgText));
 	char* cmd = str_slice(msgText, lenKeyword + 1, 1, strlen(msgText));
-	printf("%s Executing chatnet-native command: %s\n", info, cmd);
+	//printf("%s Executing chatnet-native command: %s\n", info, cmd);
 
 	if      (str_eq("exit", cmd)) write_exit();
 	else if (str_eq("list", cmd)) printf("%s", read_active());
