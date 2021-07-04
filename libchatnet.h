@@ -1,11 +1,23 @@
+#include "pch.h"
+#include "framework.h"
+
+#pragma once
+#define _CRT_SECURE_NO_WARNINGS
+
+
 #include "include/curl/curl.h"
-#include "include/libcpyb.h" 	//always at the last
+#include "include/libcpyb.cpp" 	//always at the last
 
 
 const char* err = "\033[0;31m[Error]\033[0m";
 const char* info = "\033[0;32m[Info]\033[0m";
 #define log  _GRY "[Log]" _R0 
-const char* cdir = "./chatnet.cache";
+#ifdef _WIN32
+	//LPCWSTR cdir = L"chatnetCache";
+	const char* cdir = "./chatnet.cache";
+#else
+	const char* cdir = "./chatnet.cache";
+#endif
 #define warn _YLW "[Warning]" _R0
 #define uSendDir str_addva(cdir, "/_uSend_")
 #define shkeyDir str_addva(cdir, "")
@@ -32,23 +44,23 @@ char* read_shkey(const char* uRecv) {
 }
 
 
-size_t curl_writefunc_callback(void *p, size_t size, size_t count, struct string *cResp) {
-	size_t newLen = cResp->len + size*count;
+size_t curl_writefunc_callback(void* p, size_t size, size_t count, struct string* cResp) {
+	size_t newLen = cResp->len + size * count;
 	cResp->str = (char*)realloc(cResp->str, newLen + 1);
-	if (cResp->str==NULL) {printf("curl_writefunc() failed\n"); exit(1);}
-	memcpy(cResp->str + cResp->len, p, size*count);
+	if (cResp->str == NULL) { printf("curl_writefunc() failed\n"); exit(1); }
+	memcpy(cResp->str + cResp->len, p, size * count);
 	cResp->str[newLen] = '\0';
 	cResp->len = newLen;
-	return size*count;
+	return size * count;
 }
 
 
-const char *NETADDR = "http://yuva.life/wp-admin/net.php";
+const char* NETADDR = "http://yuva.life/wp-admin/net.php";
 // NETADDR could be any address where `net.php` is stored.
 //const char* NETADDR = "http://localhost/network.php";
-char* __performCurl__(const char *PostData) {
+char* __performCurl__(const char* PostData) {
 	curl_global_init(CURL_GLOBAL_DEFAULT);
-	CURL *curl = curl_easy_init();
+	CURL* curl = curl_easy_init();
 	if (curl) {
 		curl_easy_setopt(curl, CURLOPT_URL, NETADDR);
 		//struct curl_slist* headers = NULL;
@@ -63,7 +75,7 @@ char* __performCurl__(const char *PostData) {
 		struct string cwfResp; //curl write func : response
 		str_init(&cwfResp);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &cwfResp); //Address of cwfResp (&cwfResp), not just (cwfResp). Else: Errors!!!!
-	
+
 		CURLcode res = curl_easy_perform(curl);
 		if (res != CURLE_OK) {
 			// unexpected failure
@@ -74,7 +86,7 @@ char* __performCurl__(const char *PostData) {
 		return cwfResp.str;  //Never raw json. Just strings. 
 	}
 	else {
-		printf("%s Couldn't init performCurl.\n", err); 
+		printf("%s Couldn't init performCurl.\n", err);
 		exit(1);
 	}
 }
@@ -85,12 +97,16 @@ char* serverComm(const char* postData) {
 
 	for (int i = 0; i < 10; i++) {
 		char* serverResponse = __performCurl__(postData);
-		if (! str_eq(serverResponse, PERFORMCURL_FAILED)) {
+		if (!str_eq(serverResponse, PERFORMCURL_FAILED)) {
 			return serverResponse; //success. break.
 		}
-		else if (str_eq(serverResponse, PERFORMCURL_FAILED)){ 
+		else if (str_eq(serverResponse, PERFORMCURL_FAILED)) {
 			printf("%s Connection to server dropped. Retrying...\n", warn);
+#ifdef _WIN32
+			Sleep(1);
+#else
 			sleep(1);
+#endif
 		}
 	}
 	printf("%s Connection dropped permanently. Check your internet connection.\n", err);
@@ -133,14 +149,14 @@ void write_chatroom(const char* uRecv) {
 
 char* write_ThisMsg(const char* msgText) {
 	char* uRecv = read_uRecvFromMsg(msgText);
-	
+
 	char* chatroomFn = read_shkey(uRecv);
 	//char* chatroomFn = str_addva(uRecv, "-", shkey);
-	
+
 	msgText = str_replace(msgText, uRecv, "", 0, strlen(uRecv));
-	
+
 	char* post = str_addva("--write_ThisMsg ", read_uSend(), " ", chatroomFn, msgText, "\n");
-	
+
 	return serverComm(post);
 	// This part needs checking...
 }
