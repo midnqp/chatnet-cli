@@ -18,7 +18,7 @@ const char* info = "\033[0;32m[Info]\033[0m";
 const char* cdir = "./chatnet.cache";
 #define uSendDir str_addva(cdir, "/_uSend_")
 #define shkeyDir str_addva(cdir, "")
-#define uRecvAllFn str_addva(cdir, "/_uRecvAll_") //TODO Store chatlogs in cdir/uRecvFn
+#define uRecvAllFn str_addva(cdir, "/_uRecvAll_")  //TODO Store chatlogs in cdir/uRecvFn
 #define readingAlreadyFn str_addva(cdir, "/read_AllMsg")
 #define activeFn str_addva(cdir, "/_active_")
 
