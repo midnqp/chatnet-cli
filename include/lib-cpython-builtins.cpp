@@ -438,7 +438,7 @@ char** str_split(char* a_str, const char a_delim) {
 
 		while (token)
 		{
-			*(result + idx++) = _strdup(token);
+			*(result + idx++) = strdup(token);
 			token = strtok(0, delim);
 		}
 		*(result + idx) = 0;

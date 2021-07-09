@@ -2,7 +2,7 @@
 // The wrapper over lib-chatnet-client to provide a user interface.
 
 
-#include "./libchatnet.cpp"
+#include "./lib-chatnet-client.cpp"
 
 
 #define _MBCS
