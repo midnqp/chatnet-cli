@@ -10,6 +10,6 @@ for i in ${curlDeps[@]}; do
 done
 
 
-#option="-g -fsanitize=address"
-option="-static"
-gcc $option -o ./bin/chatnet-linux-amd64 -Wall -Wextra  -DCURL_STATICLIB $program $_curlDeps
+option="-g -fsanitize=address"
+#option="-static"
+gcc $option -o ./bin/chatnet-linux-amd64 -Wall -Wextra  -DCURL_STATICLIB $program $_curlDeps -lpthread -lunistring -lldap -lgss -lnss3 -llber -lnspr4 -lpsl -lcurl-nss -lrtmp -lssh -lssl3  #-lshishi -lgcrypt -lgpg-error -lgnutls -ltasn1 -lrtmp -lpsl -llber -lldap -lnettle -lsasl2
