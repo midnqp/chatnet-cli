@@ -144,7 +144,8 @@ char* serverComm(const char* postData) {
 		if (!str_eq(serverResponse, PERFORMCURL_FAILED)) {
 			return serverResponse; //success. break.
 		}
-		else if (str_eq(serverResponse, PERFORMCURL_FAILED)) {
+		else  {
+			free(serverResponse);
 			printf("%s Connection to server dropped. Retrying...\n", warn);
 #ifdef _WIN32
 			Sleep(1);
@@ -159,7 +160,9 @@ char* serverComm(const char* postData) {
 
 
 char* read_AllMsg() {
-	char* post = str_addva("--read_AllMsg ", read_uSend());
+	char* uSend = read_uSend();
+	char* post = str_addva("--read_AllMsg ", uSend);
+	free(uSend);
 	return serverComm(post);
 }
 
@@ -195,8 +198,16 @@ char* read_active() {
 void write_chatroom(const char* uRecv) {
 	//printf("----libchatnet.h: Writing chatroom----\n");
 	char* uSend = read_uSend();
-	char* uRecvFn = serverComm(str_addva("--write_chatroom ", uSend, " ", uRecv));
-	file_write(str_addva(shkeyDir, "/", uRecv), uRecvFn);
+	char *_msg = str_addva("--write_chatroom ", uSend, " ", uRecv);
+	char* uRecvFn = serverComm(_msg);
+	
+	char* uRecvKey = str_addva(shkeyDir, "/", uRecv);
+	file_write(uRecvKey, uRecvFn);
+	
+	free(uSend);
+	free(_msg);
+	free(uRecvFn);
+	free(uRecvKey);
 }
 
 
@@ -206,13 +217,16 @@ char* write_ThisMsg(const char* msgText) {
 	char* chatroomFn = read_shkey(uRecv);
 	//char* chatroomFn = str_addva(uRecv, "-", shkey);
 
-	msgText = str_replace(msgText, uRecv, "", 0, strlen(uRecv));
+	char* _msgText = str_replace(msgText, uRecv, "", 0, strlen(uRecv));
 
 	char* uSend =read_uSend(); 
-	char* post = str_addva("--write_ThisMsg ", uSend, " ", chatroomFn, msgText, "\n");
-
+	char* post = str_addva("--write_ThisMsg ", uSend, " ", chatroomFn, _msgText, "\n");
+	
+	free(uRecv);
+	free(chatroomFn);
+	free(_msgText);
+	free(uSend);
 	return serverComm(post);
-	// This part needs checking...
 }
 
 
@@ -226,5 +240,4 @@ void write_exit() {
 	free(uSend);
 	free(add);
 	free(com);
-	exit(0);
 }

@@ -17,7 +17,7 @@ set mainCmd=x86_64-w64-mingw32-gcc-10.2.0.exe  -static  -o %out%\%outFn% -DCURL_
 
 
 set curlDeps=curl ssl crypto brotlienc-static brotlidec-static brotlicommon-static gsasl idn2 ssh2 nghttp2 z zstd
-set lib=.\lib
+set lib=.\lib-win32
 for %%i in (%curlDeps%) do (
 	call set "_curlDeps=%%_curlDeps%% %%lib%%\lib%%i.a"
 )
