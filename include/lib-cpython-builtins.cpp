@@ -1,11 +1,13 @@
-// File: lib-cpython-builtins.cpp
-// Repository: http://github.com/midnqp/lib-cpython-builtins
-// This file is modified according to need for TerminalChat.
-// Contains functions to operate on datatypes like Python.
-
-// Copyright (C) 2021 Muhammad Bin Zafar <midnightquantumprogrammer@gmail.com>
-// Licensed under the MIT License: https://opensource.org/licenses/mit-license.php
-
+/* 
+ * File: lib-cpython-builtins.cpp
+ * Repository: http://github.com/midnqp/lib-cpython-builtins
+ * This file is modified according to need for TerminalChat.
+ * Contains functions to operate on datatypes like Python.
+ *
+ * Copyright (C) 2021 Muhammad Bin Zafar <midnightquantumprogrammer@gmail.com>
+ * Licensed under the MIT License: https://opensource.org/licenses/mit-license.php
+ *
+ */
 
 
 
@@ -91,7 +93,6 @@ long file_size(const char* filename) {
 		fclose(file);
 		return size;
 	}
-	fclose(file);
 	return -1;
 }
 
@@ -120,8 +121,13 @@ void file_append(const char* filename, const char* buffer) {
 
 int file_exists(const char* fn) {
 	FILE* file = fopen(fn, "r");
-	if (file) return 1;
-	else return 0;
+	if (file) {
+		fclose(file);
+		return 1;
+	}
+	else {
+		return 0;
+	}
 }
 
 
@@ -136,8 +142,14 @@ int file_remove(const char* fn) {
 
 int dir_exists(const char* dirName) {
 	DIR* dir = opendir(dirName);
-	if (dir) return 1;
-	else return 0;
+	if (dir) {
+		closedir(dir);
+		return 1;
+	}
+	else {
+		closedir(dir);
+		return 0;
+	}
 }
 
 
@@ -148,7 +160,9 @@ int dir_exists(const char* dirName) {
 char* input(const char* any) {
 	char* tmp = new(char*, 10000); //10 KB
 	strcpy(tmp, "");
-	printf("%s", any); fgets(tmp, 10000, stdin);
+	printf("%s", any); 
+	fgets(tmp, 10000, stdin);
+	
 	size_t len = strlen(tmp);
 	tmp = (char*)realloc(tmp, len);  // if allocation > input, resizing and saving space!
 	tmp[len - 1] = '\0';  //fgets adds a newline, while reading from stdin.
@@ -249,16 +263,20 @@ char* _str_addva(const char* strings, ...) {
 
 	char* parent = (char*)malloc(9000);
 	strcpy(parent, "");
-	char* tmp = (char*)malloc(5000);
-	strcpy(tmp, "");
-	strcpy(tmp, strings);
+	char* _tmp = (char*)malloc(5000);
+	strcpy(_tmp, "");
+	strcpy(_tmp, strings);
+	strcat(parent, _tmp);
+	free(_tmp);
+
+	char* tmp = va_arg(allstrings, char*);
 
 	while (tmp != NULL) {
 		strcat(parent, tmp);
 		tmp = va_arg(allstrings, char*);
 	}
 	va_end(allstrings);
-	free(tmp);
+	//free(tmp);
 	return parent;
 }
 #define str_addva(...) _str_addva(__VA_ARGS__, NULL)
@@ -318,13 +336,18 @@ int str_index(const char* str, const char* substr, int start, int end) {
 	char* string = new(char*, size);   // temporary
 	strcpy(string, str + start);  //makes perfect sense
 
-	char* p = new(char*, strlen(str) + 1);
-	strcpy(p, "");
-	p = strstr(string, substr);
+	//210720
+	//char* p = new(char*, strlen(str) + 1);
+	//strcpy(p, "");
+	char* p = strstr(string, substr);
 	if (!p) return -1;
 
 	int loc = (p - string) + start;
 	//if ((size_t)loc < strlen(str)) return loc;
+	
+		//free(p);
+		free(string);
+	
 	if (loc < end) return loc;
 	// the location is absolute in respect to the *str.
 	// str_index("abcdefghij", h, 4) --> doesn't output 3, rather 7

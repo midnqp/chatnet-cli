@@ -7,11 +7,16 @@
 
 #define _MBCS
 #define CHATNETKW "chatnet"
-#define chatnet str_addva(MGN, "[chatnet]", R0)
-#define exmp str_addva(MGN, "[Example]", R0)
+
+#define _chatnet "[chatnet]"
+#define chatnet MGN _chatnet R0
+
+#define _exmp "[Example]"
+#define exmp _MGN _exmp _R0
 
 
 void __printfAllCmds__() {
+	char* uSend = read_uSend();
 	printf(
 		"%s--------%sCHATNET COMMANDS%s--------%s\n"
 		"%sCommands%s    %sDescription%s\n"
@@ -34,12 +39,12 @@ void __printfAllCmds__() {
 
 
 
-		, exmp
-		, read_uSend()
-		, read_uSend()
-		, read_uSend()
-		, read_uSend()
+		, exmp, uSend
+		, uSend
+		, uSend
+		, uSend
 		, BLU, R0);
+	free(uSend);
 }
 
 void notice(const char* what);
@@ -61,6 +66,7 @@ void chatnet_init() {
 	if (!file_exists(uSendDir)) {
 		char* uSend = input("[Init] Enter username: ");
 		file_write(uSendDir, uSend);
+		free(uSend);
 	}
 
 
@@ -98,7 +104,8 @@ void chatnet_write() {
 	char* uSend = read_uSend();
 
 	while (1) {
-		char* msgText = input(str_addva(uSend, " >> "));
+		char *add = str_addva(uSend, " >> ");
+		char* msgText = input(add);
 		int canWrite = true; // Every baby is born Muslim (submitting to the best words of Allah).
 
 		char* uRecv = read_uRecvFromMsg(msgText);
@@ -118,12 +125,23 @@ void chatnet_write() {
 			write_chatroom(uRecv);
 		}
 		if (canWrite == true) write_ThisMsg(msgText);
+
+		
+		// freeing for each time
+		free(uSend);
+		free(add);
+		free(msgText);
 	}
+
+	// The needs to break in order to free the memory it contained.
+	// We can't just exit, without freeing memory!
 }
 
 
 void chatnet_execCmd(char* msgText) {
-	read_active();
+	char* actives = read_active();
+	free(actives);
+
 	int lenKeyword = (int)strlen(CHATNETKW);
 	//int nextSpace = str_index(msgText, " ", lenKeyword + 1, strlen(msgText));
 	char* cmd = str_slice(msgText, lenKeyword + 1, 1, strlen(msgText));
@@ -133,6 +151,7 @@ void chatnet_execCmd(char* msgText) {
 	else if (str_eq("list", cmd)) printf("%s", read_active());
 	else if (str_eq("read", cmd)) chatnet_read();
 	else if (str_eq("write", cmd)) chatnet_write();
+	free(cmd);
 }
 
 

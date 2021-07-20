@@ -10,17 +10,25 @@
 #include "include/curl/curl.h"
 #include "include/lib-cpython-builtins.cpp"
 
-const char* err = "\033[0;31m[Error]\033[0m";
-const char* info = "\033[0;32m[Info]\033[0m";
+//const char* err = "\033[0;31m[Error]\033[0m";
+//const char* info = "\033[0;32m[Info]\033[0m";
+#define err "\033[0;31m[Error]\033[0m"
+#define info "\033[0;32m[Info]\033[0m"
 #define log  _GRY "[Log]" _R0
 #define warn _YLW "[Warning]" _R0
 
-const char* cdir = "./chatnet.cache";
-#define uSendDir str_addva(cdir, "/_uSend_")
-#define shkeyDir str_addva(cdir, "")
-#define uRecvAllFn str_addva(cdir, "/_uRecvAll_")  //TODO Store chatlogs in cdir/uRecvFn
-#define readingAlreadyFn str_addva(cdir, "/read_AllMsg")
-#define activeFn str_addva(cdir, "/_active_")
+//const char* cdir = "./chatnet.cache";
+#define cdir "./chatnet.cache"
+#define uSendDir cdir "/__uSend__"
+#define shkeyDir cdir ""
+#define uRecvAllFn cdir "/__uRecvAll__"
+#define readingAlreadyFn cdir "/read_AllMsg"
+#define activeFn cdir "/__active__"
+//#define uSendDir str_addva(cdir, "/_uSend_")
+//#define shkeyDir str_addva(cdir, "")
+//#define uRecvAllFn str_addva(cdir, "/_uRecvAll_")  //TODO Store chatlogs in cdir/uRecvFn
+//#define readingAlreadyFn str_addva(cdir, "/read_AllMsg")
+//#define activeFn str_addva(cdir, "/_active_")
 
 const char* NETADDR = "http://yuva.life/wp-admin/net.php";
 // NETADDR could be any address where `net.php` is stored.
@@ -41,7 +49,8 @@ char* read_uSend() {
 
 
 char* read_shkey(const char* uRecv) {
-	return file_read(str_addva(shkeyDir, "/", uRecv));
+	char* add = str_addva(shkeyDir, "/", uRecv);
+	return file_read(add);
 }
 
 
@@ -52,6 +61,8 @@ size_t curl_writefunc_callback(void* p, size_t size, size_t count, struct string
 	memcpy(cResp->str + cResp->len, p, size * count);
 	cResp->str[newLen] = '\0';
 	cResp->len = newLen;
+
+	//210720: you just need the size*count, nothing else matters right?
 	return size * count;
 }
 
@@ -125,14 +136,23 @@ char* read_uRecvFromMsg(const char* msgText) {
 
 
 void read_uRecvAll() {
-	char* uRecvAll = serverComm(str_addva("--read_uRecvAll ", read_uSend()));
+	char* uSend = read_uSend();
+	char* add = str_addva("--read_uRecvAll ", uSend);
+	char* uRecvAll = serverComm(add);
 	file_write(uRecvAllFn, uRecvAll);
+	free(uSend);
+	free(add);
+	free(uRecvAll);
 }
 
 
 char* read_active() {
-	char* activeAll = serverComm(str_addva("--read_active ", read_uSend()));
+	char* uSend = read_uSend();
+	char* add = str_addva("--read_active ", uSend);
+	char* activeAll = serverComm(add);
 	file_write(activeFn, activeAll);
+	free(uSend);
+	free(add);
 	return activeAll;
 }
 
@@ -163,7 +183,12 @@ char* write_ThisMsg(const char* msgText) {
 void write_exit() {
 	file_remove(readingAlreadyFn);
 
-	serverComm(str_addva("--write_exit ", read_uSend()));
+	char* uSend = read_uSend();
+	char* add = str_addva("--write_exit ", uSend);
+	char* com = serverComm(add);
 	printf("%s Exited chatnet network.\n", info);
+	free(uSend);
+	free(add);
+	free(com);
 	exit(0);
 }
