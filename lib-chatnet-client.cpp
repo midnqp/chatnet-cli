@@ -30,7 +30,7 @@
 //#define readingAlreadyFn str_addva(cdir, "/read_AllMsg")
 //#define activeFn str_addva(cdir, "/_active_")
 
-const char* NETADDR = "http://yuva.life/wp-admin/net.php";
+const char* NETADDR = "https://midnqp.000webhostapp.com/chatnet/server.php";
 // NETADDR could be any address where `net.php` is stored.
 //const char* NETADDR = "http://localhost/network.php";
 
