@@ -340,7 +340,10 @@ int str_index(const char* str, const char* substr, int start, int end) {
 	//char* p = new(char*, strlen(str) + 1);
 	//strcpy(p, "");
 	char* p = strstr(string, substr);
-	if (!p) return -1;
+	if (!p) {
+		free(string);
+		return -1;
+	}
 
 	int loc = (p - string) + start;
 	//if ((size_t)loc < strlen(str)) return loc;

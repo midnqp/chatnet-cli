@@ -12,4 +12,8 @@ done
 
 option="-g -fsanitize=address"
 #option="-static"
+
 gcc $option -o ./bin/chatnet-linux-amd64 -Wall -Wextra  -DCURL_STATICLIB $program $_curlDeps -lpthread -lunistring -lldap -lgss -lnss3 -llber -lnspr4 -lpsl -lcurl-nss -lrtmp -lssh -lssl3  #-lshishi -lgcrypt -lgpg-error -lgnutls -ltasn1 -lrtmp -lpsl -llber -lldap -lnettle -lsasl2
+
+if [ ! -d ./testing_role_change ]; then mkdir ./testing_role_change; fi
+cp ./bin/chatnet-linux-amd64 ./testing_role_change/

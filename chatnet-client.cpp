@@ -128,9 +128,9 @@ void chatnet_write() {
 
 		
 		// freeing for each time
-		free(uSend);
 		free(add);
 		free(msgText);
+		free(uRecv);
 	}
 
 	// The needs to break in order to free the memory it contained.
@@ -148,7 +148,11 @@ void chatnet_execCmd(char* msgText) {
 	//printf("%s Executing chatnet-native command: %s\n", info, cmd);
 
 	if (str_eq("exit", cmd)) write_exit();
-	else if (str_eq("list", cmd)) printf("%s", read_active());
+	else if (str_eq("list", cmd)) {
+		char* actives = read_active();
+		printf("%s", actives); 
+		free(actives);
+	}
 	else if (str_eq("read", cmd)) chatnet_read();
 	else if (str_eq("write", cmd)) chatnet_write();
 	free(cmd);
@@ -185,10 +189,22 @@ int isActive_Valid_uRecv(const char* uRecv) {
 	char* _uRecv_ = str_addva("[+] ", uRecv, "\n");
 	if (str_index(activeAll, _uRecv_, 0, strlen(activeAll)) != -1) {
 		// uRecv is active
-		if (str_isalpha(uRecv)) return 1; //true. Perfect!
-		else return 0;
+		if (str_isalpha(uRecv)) {
+			free(activeAll);
+			free(_uRecv_);
+			return 1; //true. Perfect!
+		}
+		else {
+			free(activeAll);
+			free(_uRecv_);
+			return 0;
+		}
 	}
-	else return 0;
+	else {
+		free(activeAll);
+		free(_uRecv_);
+		return 0;
+	}
 }
 
 

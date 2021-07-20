@@ -57,7 +57,12 @@ char* read_shkey(const char* uRecv) {
 size_t curl_writefunc_callback(void* p, size_t size, size_t count, struct string* cResp) {
 	size_t newLen = cResp->len + size * count;
 	cResp->str = (char*)realloc(cResp->str, newLen + 1);
-	if (cResp->str == NULL) { printf("curl_writefunc() failed\n"); exit(1); }
+
+	if (cResp->str == NULL) { 
+		printf("curl_writefunc() failed\n"); 
+		exit(1); 
+	}
+	
 	memcpy(cResp->str + cResp->len, p, size * count);
 	cResp->str[newLen] = '\0';
 	cResp->len = newLen;
@@ -79,20 +84,50 @@ char* __performCurl__(const char* PostData) {
 		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, PostData);
 		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
 		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
-		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_writefunc_callback);
+		
 
+		/* 
+		 * CRITICAL :: EXPLANATION :: curl_writefunc_callback()
+		 *
+		 *
+		 * A function (with signatures according to curl's needs) 
+		 * is provided to the curl option, for being used for 
+		 * writing responses.
+		 *
+		 * And the `struct string* cResp` (the last argument 
+		 * of the callback function) - a variable is provided
+		 * the arg `cResp` using `CURLOPT_WRITEDATA`!
+		 *
+		 * Moreover do notice, the variable is provided as an address.
+		 * Meaning, a new var won't be instatiated every time 
+		 * data comes in like Nodejs. Data stream will be concat'ed
+		 * to `cwfResp`!
+		 *
+		 * cwfResp = Curl Write Function's Response 
+		 * (provided through CURL_WRITEDATA as address).
+		 * cResp = Curl's Response 
+		 * (this name is used at function declaration signature).
+		 *
+		 */
+		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_writefunc_callback);
 		struct string cwfResp; //curl write func : response
 		str_init(&cwfResp);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &cwfResp); //Address of cwfResp (&cwfResp), not just (cwfResp). Else: Errors!!!!
 
-		CURLcode res = curl_easy_perform(curl);
-		if (res != CURLE_OK) {
+
+
+		CURLcode rescode = curl_easy_perform(curl);
+		if (rescode != CURLE_OK) {
 			// unexpected failure
 			return (char*)PERFORMCURL_FAILED;
 		}
 		curl_easy_cleanup(curl);
 		curl_global_cleanup();
-		return cwfResp.str;  //Never raw json. Just strings.
+	
+		char* rawResp = new(char*, strlen(cwfResp.str));
+		strcpy(rawResp, cwfResp.str);
+		free(cwfResp.str);
+		return rawResp;
 	}
 	else {
 		printf("%s Couldn't init performCurl.\n", err);
@@ -173,7 +208,8 @@ char* write_ThisMsg(const char* msgText) {
 
 	msgText = str_replace(msgText, uRecv, "", 0, strlen(uRecv));
 
-	char* post = str_addva("--write_ThisMsg ", read_uSend(), " ", chatroomFn, msgText, "\n");
+	char* uSend =read_uSend(); 
+	char* post = str_addva("--write_ThisMsg ", uSend, " ", chatroomFn, msgText, "\n");
 
 	return serverComm(post);
 	// This part needs checking...
