@@ -25,6 +25,9 @@ void chatnet_sleep(int seconds) {
 }
 
 void chatnet_init() {
+	notice("init");
+	
+
 	if (!dir_exists(cdir)) {
 		#ifdef _WIN32
 		CreateDirectory(cdir, NULL);
@@ -41,7 +44,6 @@ void chatnet_init() {
 	}
 
 
-	notice("init");
 	notice("cmd-not-found");
 }
 
@@ -50,7 +52,10 @@ void chatnet_read() {
 	notice("read_AllMsg");
 	file_write(readingAlreadyFn, "");
 	while (1) {
-		if (!file_exists(readingAlreadyFn)) exit(0); //no leaks
+		if (!file_exists(readingAlreadyFn)) {
+			printf("%s Exited chatnet network.\n", info);
+			exit(0); //no leaks
+		}
 
 		char* MsgAll = read_AllMsg();
 		if (str_eq(MsgAll, "")) {
@@ -67,7 +72,7 @@ void chatnet_write() {
 	char* uSend = read_uSend();
 
 	while (1) {
-		char* add = str_addva(_BLU, uSend, _RED, " >", _GRN, ">", _BLU, "> ", _R0);
+		char* add = str_addva("\033[94m", uSend, _R0, " ", "\033[91m", ">", "\033[94m", ">", "\033[92m", ">", _R0, " ");
 		char* msgText = input(add);
 		// Every baby is born Muslim (submitting to the best words of Allah).
 		int canWrite = true;
@@ -179,7 +184,7 @@ void notice(const char* about) {
 ██║░░██╗██╔══██║██╔══██║░░░██║░░░██║╚████║██╔══╝░░░░░██║░░░ \n\
 ╚█████╔╝██║░░██║██║░░██║░░░██║░░░██║░╚███║███████╗░░░██║░░░ \n\
 ░╚════╝░╚═╝░░╚═╝╚═╝░░╚═╝░░░╚═╝░░░╚═╝░░╚══╝╚══════╝░░░╚═╝░░░ %s\n\
-A hidden computer network under a single-file of any website.\n\
+A hidden computer network under a single-file at any website.\n\
         Original Author : Muhammad Bin Zafar  @MidnQP\n\
         Repository      : www.github.com/MidnQP/TerminalChat \n\
 \n\
@@ -207,7 +212,7 @@ A hidden computer network under a single-file of any website.\n\
 	else if (str_eq(about, "example")) { printf(
 		_GRY "---------------------%sExample%s-----------------------" _R0 "\n"
 		"YourName >> chatnet list\n"
-		_GRY "[+] friend1\n[+] friend2\n[+] friend3\n[+]YourName\n" _R0
+		_GRY "[+] friend1\n[+] friend2\n[+] friend3\n[+] YourName\n" _R0
 
 		"YourName >> chatnet read\n"
 		_GRY "[Info] CHATNET now starts to receive all your incoming messages\n" 
