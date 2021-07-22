@@ -1,81 +1,48 @@
-// File: chatnet-client.cpp
-// The wrapper over lib-chatnet-client to provide a user interface.
-
-
-#include "./lib-chatnet-client.cpp"
-
-
+/**
+ * File :: Chatnet Client
+ * The wrapper over lib-chatnet-client to provide a user interface.
+ *
+ * Copyright (C) 2021 Muhammad Bin Zafar <midnightquantumprogrammer@gmail.com>
+ * Licensed under MIT License
+ **/
+#include "lib-chatnet-client.cpp"
 #define _MBCS
-#define CHATNETKW "chatnet"
 
-#define _chatnet "[chatnet]"
-#define chatnet MGN _chatnet R0
-
-#define _exmp "[Example]"
-#define exmp _MGN _exmp _R0
-
-
-void notice(const char* what);
-void __printfAllCmds__() {
-	char* uSend = read_uSend();
-	printf(
-		"%s------------%sCHATNET COMMANDS%s------------%s\n"
-		"%s[Commands]%s    %s[Description]%s\n"
-		"list      List all active users in the network\n"
-		"read      Starts reading all your messages\n"
-		//"write     Starts input prompt for writing messages\n"
-		"exit      Exits from the Chatnet network\n"
-		"\n"
-		"%s\n"
-		//"%s >> chatnet list\n"
-		//"%s >> chatnet read\n"
-		//"%s >> chatnet write\n"
-		//"%s >> chatnet exit\n"
-
-		, BLU, GRN, BLU, R0
-		, MGN, R0, MGN, R0
-
-
-
-
-
-		, exmp
-		//, uSend
-		//, uSend
-		//, uSend
-		//, uSend
-		);
-		notice("example");
-		printf("%s----------------------------------------%s\n\n\n\n", BLU, R0);	
-	free(uSend);
-}
-
+#define CHATNET_CMD_KW "chatnet"
 int chatnet_execCmd(char* msgText);
 int isActive_Valid_uRecv(const char* uRecv);
+void notice(const char* what);
+void chatnet_sleep(int seconds);
+
+
+
+void chatnet_sleep(int seconds) {
+	#ifdef _WIN32
+	Sleep(seconds);
+	#else 
+	sleep(seconds);
+	#endif
+}
 
 void chatnet_init() {
-
 	if (!dir_exists(cdir)) {
-#ifdef _WIN32
+		#ifdef _WIN32
 		CreateDirectory(cdir, NULL);
-#else
+		#else
 		mkdir(cdir, 0755);
-#endif
+		#endif
 	}
 
 
 	if (!file_exists(uSendDir)) {
-		char* uSend = input("[Init] Enter username: ");
+		char* uSend = input(init " Enter username: ");
 		file_write(uSendDir, uSend);
 		free(uSend);
 	}
 
 
-	__printfAllCmds__();
-
-
-	//TODO ASCII Art
-	//if (! file_exists(uRecvAllFn)) file_write(uRecvAllFn, "");
+	notice("init");
+	notice("cmd-not-found");
 }
 
 
@@ -83,19 +50,11 @@ void chatnet_read() {
 	notice("read_AllMsg");
 	file_write(readingAlreadyFn, "");
 	while (1) {
-		if (!file_exists(readingAlreadyFn)) {
-			exit(0);
-		}
+		if (!file_exists(readingAlreadyFn)) exit(0); //no leaks
 
 		char* MsgAll = read_AllMsg();
 		if (str_eq(MsgAll, "")) {
-			//failed, no msg recvd
-#ifdef _WIN32
-			//Sleep(1);
-#else
-			//sleep(1);
-#endif
-			//printf("--nothing received\n");
+			// No msg recvd
 		}
 		else printf("%s", MsgAll);
 		free(MsgAll);
@@ -104,11 +63,11 @@ void chatnet_read() {
 
 
 void chatnet_write() {
-	notice("write_ThisMsg");
+	notice("read off write on");
 	char* uSend = read_uSend();
 
 	while (1) {
-		char* add = str_addva(uSend, " >> ");
+		char* add = str_addva(_BLU, uSend, _RED, " >", _GRN, ">", _BLU, "> ", _R0);
 		char* msgText = input(add);
 		// Every baby is born Muslim (submitting to the best words of Allah).
 		int canWrite = true;
@@ -116,7 +75,7 @@ void chatnet_write() {
 
 
 		char* uRecv = read_uRecvFromMsg(msgText);
-		if (str_eq(uRecv, CHATNETKW)) {
+		if (str_eq(uRecv, CHATNET_CMD_KW)) {
 			retExec = chatnet_execCmd(msgText);
 			if (retExec == 1) {
 				//Preparing for exit
@@ -132,7 +91,7 @@ void chatnet_write() {
 			&& isActive_Valid_uRecv(uRecv) == false) 
 		{
 			notice("inactive_invalid_uRecv");
-			notice("example");
+			//notice("example");
 			canWrite = false;
 		}
 
@@ -146,7 +105,10 @@ void chatnet_write() {
 		}
 
 
-		if (canWrite == true) write_ThisMsg(msgText);
+		if (canWrite == true) {
+			char* tmp = write_ThisMsg(msgText);
+			free(tmp);
+		}
 
 		
 		// freeing for each time
@@ -169,22 +131,32 @@ int chatnet_execCmd(char* msgText) {
 	char* actives = read_active();
 	free(actives);
 
-	int lenKeyword = (int)strlen(CHATNETKW);
+	int lenKeyword = (int)strlen(CHATNET_CMD_KW);
 	char* cmd = str_slice(msgText, lenKeyword + 1, 1, strlen(msgText));
 
-	if (str_eq("exit", cmd)) {
+	if (str_eq("example", cmd)) {
+		free(cmd);
+		notice("example");
+	}
+	else if (str_eq("exit", cmd)) {
 		free(cmd);
 		return 1;
 	}
 	else if (str_eq("list", cmd)) {
 		char* actives = read_active();
 		printf("%s", actives); 
+		free(cmd);
 		free(actives);
 	}
-	else if (str_eq("read", cmd)) chatnet_read();
-	//else if (str_eq("write", cmd)) chatnet_write();
+	else if (str_eq("read", cmd)) {
+		free(cmd);
+		chatnet_read(); //You can exit if you want.
+	}
 	
-	free(cmd);
+	else {
+		notice("cmd-not-found");
+		free(cmd);
+	}
 	return 0;
 }
 
@@ -193,58 +165,100 @@ int chatnet_execCmd(char* msgText) {
 
 
 void notice(const char* about) {
-	// see that's how you encapsulate in C, object-orientation in C
 	if (str_eq(about, "write_chatroom")) {
 		printf("%s Creating new chatroom...\n", info);
 	}
 
-	else if (str_eq(about, "example")) {
-		printf(
-		"%s[Example]%s\n"
-		"YourName >> chatnet list\n"
-		_GRY "[+] midnqp\n[+] Muhammad\n[+] OtherPeople" _R0
-		"YourName >> chatnet read\n"
-		_GRY "[info] CHATNET now starts to receive all your incoming messages\n" 
-		"[midnqp] Hello, YourName!\n[Muhammad] Hey, I just sent you a message!\n" _R0
-		"YourName >> midnqp Hi, MidnQP!\n"
-		"YourName >> Muhammad Yes, I've received your message!\n"
 
-		"%sDo notice: %s The first word in every message must be the receiver's name. \n"
-		"%sDo notice: %s After running `chatnet read`, you need to launch another CHATNET instance to write messages.\n"
-		, MGN, R0, CYN, R0, CYN, R0);
+	else if (str_eq(about, "init")) {
+		printf("\
+\n%s\
+░█████╗░██╗░░██╗░█████╗░████████╗███╗░░██╗███████╗████████╗ \n\
+██╔══██╗██║░░██║██╔══██╗╚══██╔══╝████╗░██║██╔════╝╚══██╔══╝ \n\
+██║░░╚═╝███████║███████║░░░██║░░░██╔██╗██║█████╗░░░░░██║░░░ \n\
+██║░░██╗██╔══██║██╔══██║░░░██║░░░██║╚████║██╔══╝░░░░░██║░░░ \n\
+╚█████╔╝██║░░██║██║░░██║░░░██║░░░██║░╚███║███████╗░░░██║░░░ \n\
+░╚════╝░╚═╝░░╚═╝╚═╝░░╚═╝░░░╚═╝░░░╚═╝░░╚══╝╚══════╝░░░╚═╝░░░ %s\n\
+A hidden computer network under a single-file of any website.\n\
+        Original Author : Muhammad Bin Zafar  @MidnQP\n\
+        Repository      : www.github.com/MidnQP/TerminalChat \n\
+\n\
+", _GRN, _R0);
+		chatnet_sleep(1);
+		printf(
+		"%sCommands%s    %sDescription%s\n"
+		"list        List all active users\n"
+		"read        Start receiving all incoming messages\n"
+		"exit        Exit from CHATNET\n"
+		"example     Learn how to use this software\n"
+		"\n\n"
+
+		, MGN, R0, MGN, R0);	
 	}
+
+	
+	else if (str_eq(about, "cmd-not-found")) {
+		printf(init " Type " _GRY "chatnet example" _R0 
+		", and press " _GRY "Enter" _R0 
+		" - to see a tutorial!\n"
+		);
+	}
+
+	else if (str_eq(about, "example")) { printf(
+		_GRY "---------------------%sExample%s-----------------------" _R0 "\n"
+		"YourName >> chatnet list\n"
+		_GRY "[+] friend1\n[+] friend2\n[+] friend3\n[+]YourName\n" _R0
+
+		"YourName >> chatnet read\n"
+		_GRY "[Info] CHATNET now starts to receive all your incoming messages\n" 
+		"[friend1] Hello, YourName!\n[friend2] I just sent my first message!!\n" _R0
+		
+		"YourName >> friend1 Peace be upon you!\n"
+		"YourName >> friend2 Yes, I received. But, gotta go now.\n"
+		"Yourname >> chatnet exit\n"
+		"%s[Info] Exited CHATNET%s\n\n"
+
+		"%sNotice in example:%s The first word in every message must be the receiver's name. \n"
+		"%sNotice in example:%s After running `chatnet read`, you need to launch another CHATNET.exe instance to write messages.\n"
+		_GRY "--------------------------------------------------" _R0 "\n"
+
+		, MGN, _GRY
+		, GRY, R0
+		, CYN, R0
+		, CYN, R0);
+	}
+
 
 	else if (str_eq(about, "read on write off")) {		
 		printf("%s WRITE_MODE deactivated\n", info);
 		printf("%s READ_MODE activated\n", info);
 	}
+
+
 	else if (str_eq(about, "read off write on")) {
 		printf("%s READ_MODE deactivated\n", info);
 		printf("%s WRITE_MODE activated\n", info);
 	}
+
 
 	else if (str_eq(about, "read_AllMsg")) {
 		notice("read on write off");
 
 		printf("%s You cannot send messages using this window anymore\n", warn);
 		printf("%s Please launch another CHATNET.exe to write messages\n", warn);
-		printf("%s Do not close this windows\n", warn);
+		printf("%s Do not close this window\n", warn);
 
 		printf("%s Receiving all incoming messages in this window\n", info);
 	}
 
+
 	else if (str_eq(about, "inactive_invalid_uRecv")) {
-		printf("%s[]%s Either uRecv %s(the first word in your message)%s is invalid %s(contains anything other than alphabet)%s, or the recipient user is %sinactive%s right now.\n", RED, R0, GRY, R0, GRY, R0, GRY, R0);
+		printf("%s Receiving-user must be " _GRY "the first word in your message." _R0 " Is the person listed active?\n", err);
 	}
 }
 
 
 int isActive_Valid_uRecv(const char* uRecv) {
-	/*char* uRecvAll = file_read(uRecvAllFn);
-	if (str_index(uRecvAll, str_addva("_", uRecv, "_"), 0, strlen(uRecvAll)) != -1)
-		return 1; //true
-	else return 0;
-	*/
 	char* activeAll = read_active();
 	char* _uRecv_ = str_addva("[+] ", uRecv, "\n");
 	if (str_index(activeAll, _uRecv_, 0, strlen(activeAll)) != -1) {

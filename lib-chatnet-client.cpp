@@ -14,6 +14,7 @@
 //const char* info = "\033[0;32m[Info]\033[0m";
 #define err "\033[0;31m[Error]\033[0m"
 #define info "\033[0;32m[Info]\033[0m"
+#define init "\033[0;32m[Init]\033[0m"
 #define log  _GRY "[Log]" _R0
 #define warn _YLW "[Warning]" _R0
 
@@ -50,7 +51,9 @@ char* read_uSend() {
 
 char* read_shkey(const char* uRecv) {
 	char* add = str_addva(shkeyDir, "/", uRecv);
-	return file_read(add);
+	char* tmpRead =  file_read(add);
+	free(add);
+	return tmpRead;
 }
 
 
@@ -145,8 +148,8 @@ char* serverComm(const char* postData) {
 			return serverResponse; //success. break.
 		}
 		else  {
-			free(serverResponse);
 			printf("%s Connection to server dropped. Retrying...\n", warn);
+			//free(serverResponse); //segv error write access
 #ifdef _WIN32
 			Sleep(1);
 #else
@@ -156,14 +159,18 @@ char* serverComm(const char* postData) {
 	}
 	printf("%s Connection dropped permanently. Check your internet connection.\n", err);
 	exit(-1);
+	//Lets free memory
+	//return (char*)PERFORMCURL_FAILED;
 }
 
 
 char* read_AllMsg() {
 	char* uSend = read_uSend();
 	char* post = str_addva("--read_AllMsg ", uSend);
+	char* respAfterPost = serverComm(post);
 	free(uSend);
-	return serverComm(post);
+	free(post);
+	return respAfterPost;
 }
 
 
@@ -221,12 +228,15 @@ char* write_ThisMsg(const char* msgText) {
 
 	char* uSend =read_uSend(); 
 	char* post = str_addva("--write_ThisMsg ", uSend, " ", chatroomFn, _msgText, "\n");
+	char* respAfterPost = serverComm(post);
 	
 	free(uRecv);
 	free(chatroomFn);
 	free(_msgText);
 	free(uSend);
-	return serverComm(post);
+	free(post);
+
+	return respAfterPost;
 }
 
 

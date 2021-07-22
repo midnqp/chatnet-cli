@@ -376,7 +376,9 @@ char* str_slice(const char* string, int start, int step, int end);
 int str_isalpha(const char* string) {
 	int result = 1; //true
 	for (size_t i = 0; i < strlen(string); i++) {
-		char ch = str_slice(string, i, 1, i + 1)[0];
+		char* tmpSlice = str_slice(string, i, 1, i + 1);
+		char ch = tmpSlice[0];
+		free(tmpSlice);
 		if (!isalpha(ch)) { result = 0; break; }  //false
 	}
 	return result;
