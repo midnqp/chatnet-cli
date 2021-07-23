@@ -35,6 +35,6 @@ libunistring-dev libldap-dev libgss-dev libnss3-dev liblber-dev libnspr4-dev lib
 - Inside `lib-chatnet-client.h` change symbol `NETADDR` to http://yourwebsite.com/path/to/chatnet-server.php
 - Compile the client implementations and distribute/deploy 🚀!
 
-## TODO
+## TODO 📃
 - Store chatlogs locally
 - `chatnet send <receiver> <file/folder>`
