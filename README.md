@@ -1,4 +1,4 @@
-<p align=center><img src="https://raw.githubusercontent.com/MidnQP/midnqp/midnqp/cdn/terminal-chat-logo.PNG"></p>
+<p align=center><img src="https://raw.githubusercontent.com/MidnQP/midnqp/midnqp/cdn/terminal-chat-logo-white.PNG"></p>
 
 Join your network of 👨🏻‍💻 people, and be greeted 👋🏻 with peace!
 
