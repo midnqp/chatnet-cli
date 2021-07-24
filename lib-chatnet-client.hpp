@@ -1,14 +1,14 @@
-// File: lib-chatnet.cpp
-// Contains client-side code to communicate with server.
+/**
+ * File: lib-chatnet-client.h
+ * Contains client-side code to communicate with server.
+ *
+ * Copyright (C) 2021 Muhammad Bin Zafar <midnightquantumprogrammer@gmail.com>
+ * Licensed under the GPLv2.
+ **/
 
-// Copyright (C) 2021 Muhammad Bin Zafar <midnightquantumprogrammer@gmail.com>
-// Licensed under the MIT License: https://opensource.org/licenses/mit-license.php
-
-
-
-
-#include "include/curl/curl.h"
-#include "include/lib-cpython-builtins.cpp"
+#pragma once
+#include "curl/curl.h"
+#include "lib-cpython-builtins.h"
 
 //const char* err = "\033[0;31m[Error]\033[0m";
 //const char* info = "\033[0;32m[Info]\033[0m";

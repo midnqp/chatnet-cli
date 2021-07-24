@@ -1,13 +1,12 @@
-/* 
+/**
  * File: lib-cpython-builtins.cpp
  * Repository: http://github.com/midnqp/lib-cpython-builtins
  * This file is modified according to need for TerminalChat.
  * Contains functions to operate on datatypes like Python.
  *
  * Copyright (C) 2021 Muhammad Bin Zafar <midnightquantumprogrammer@gmail.com>
- * Licensed under the MIT License: https://opensource.org/licenses/mit-license.php
- *
- */
+ * Licensed under the GPLv2.
+ **/
 
 
 
@@ -466,7 +465,11 @@ char** str_split(char* a_str, const char a_delim) {
 
 		while (token)
 		{
+			#ifdef _WIN32
+			* (result + idx++) = _strdup(token);
+			#else
 			*(result + idx++) = strdup(token);
+			#endif
 			token = strtok(0, delim);
 		}
 		*(result + idx) = 0;

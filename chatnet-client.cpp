@@ -3,10 +3,11 @@
  * The wrapper over lib-chatnet-client to provide a user interface.
  *
  * Copyright (C) 2021 Muhammad Bin Zafar <midnightquantumprogrammer@gmail.com>
- * Licensed under MIT License
+ * Licensed under GPLv2
  **/
-#include "lib-chatnet-client.cpp"
-#define _MBCS
+#pragma once
+#include "lib-chatnet-client.h"
+
 
 #define CHATNET_CMD_KW "chatnet"
 int chatnet_execCmd(char* msgText);
@@ -176,19 +177,31 @@ void notice(const char* about) {
 
 
 	else if (str_eq(about, "init")) {
-		printf("\
-\n%s\
+		printf("\n");
+#ifdef _WIN32
+printf("%s\
+   _____ _    _       _______ _   _ ______ _______ \n\
+  / ____| |  | |   /\\|__   __| \\ | |  ____|__   __|\n\
+ | |    | |__| |  /  \\  | |  |  \\| | |__     | |   \n\
+ | |    |  __  | / /\\ \\ | |  | . ` |  __|    | |   \n\
+ | |____| |  | |/ ____ \\| |  | |\\  | |____   | |   \n\
+  \\_____|_|  |_/_/    \\_\\_|  |_| \\_|______|  |_|   \n\
+%s\
+", _GRN, _R0);
+#else
+printf("%s\
 ░█████╗░██╗░░██╗░█████╗░████████╗███╗░░██╗███████╗████████╗ \n\
 ██╔══██╗██║░░██║██╔══██╗╚══██╔══╝████╗░██║██╔════╝╚══██╔══╝ \n\
 ██║░░╚═╝███████║███████║░░░██║░░░██╔██╗██║█████╗░░░░░██║░░░ \n\
 ██║░░██╗██╔══██║██╔══██║░░░██║░░░██║╚████║██╔══╝░░░░░██║░░░ \n\
 ╚█████╔╝██║░░██║██║░░██║░░░██║░░░██║░╚███║███████╗░░░██║░░░ \n\
-░╚════╝░╚═╝░░╚═╝╚═╝░░╚═╝░░░╚═╝░░░╚═╝░░╚══╝╚══════╝░░░╚═╝░░░ %s\n\
-A hidden computer network under a single-file at any website.\n\
+░╚════╝░╚═╝░░╚═╝╚═╝░░╚═╝░░░╚═╝░░░╚═╝░░╚══╝╚══════╝░░░╚═╝░░░ %s\n", _GRN, _R0);
+#endif
+		printf("A hidden computer network under a single-file at any website.\n\
         Original Author : Muhammad Bin Zafar  @MidnQP\n\
         Repository      : www.github.com/MidnQP/TerminalChat \n\
 \n\
-", _GRN, _R0);
+");
 		chatnet_sleep(1);
 		printf(
 		"%sCommands%s    %sDescription%s\n"
