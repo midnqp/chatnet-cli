@@ -3,7 +3,7 @@
 Join your network of 👨🏻‍💻 people, and be greeted 👋🏻 with peace!
 
 - [Download TerminalChat for Windows](https://github.com/MidnQP/TerminalChat/raw/master/bin/WinTerminalChat_vlatest.zip)
-- [Download TerminalChat for Linux/Mac](https://github.com/MidnQP/TerminalChat/raw/master/bin/chatnet-linux-amd64)
+<!-- - [Download TerminalChat for Linux/Mac](https://github.com/MidnQP/TerminalChat/raw/master/bin/chatnet-linux-amd64) -->
 
 
 # Information
