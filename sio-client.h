@@ -1,3 +1,6 @@
+#ifndef CHATNET_SIOCLIENT_H_
+#define CHATNET_SIOCLIENT_H_
+
 #include <libgen.h>
 #include <pthread.h>
 #include <stdbool.h>
@@ -10,15 +13,7 @@
 #include "db.h"
 #include "string.h"
 #include "util.h"
-#include "sio-client.h"
 
-int main(int argc, char *argv[]) {
+void sioclientinit();
 
-	atexit(dealloc);
-
-	sioclientinit();
-
-	leveldbinit();
-
-	return 0;
-}
+#endif // ends CHATNET_SIOCLIENT_H_

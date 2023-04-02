@@ -1,6 +1,4 @@
-#include <malloc.h>
-#include <stdio.h>
-#include <string.h>
+#include "autofree.h"
 
 #ifndef DEBUG
 #define DEBUG 0
@@ -79,6 +77,11 @@ void* autofree_realloc(void* ptr, size_t sz) {
 	ptr = realloc(ptr, sz);
 	freeable_add(ptr);
 	return ptr;
+}
+
+void autofree_free(void* ptr) {
+	free(ptr);
+	freeable_remove(ptr);
 }
 
 /*

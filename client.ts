@@ -6,7 +6,7 @@ import fs from "fs-extra";
 main();
 
 async function main() {
-	console.log = () => {}
+  console.log = () => {};
 
   const ENV = process.env;
   const serverurl = "https://chatnet-server.midnqp.repl.co";
