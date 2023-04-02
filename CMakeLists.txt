@@ -1,0 +1,15 @@
+CMAKE_MINIMUM_REQUIRED(VERSION 3.13)
+CMAKE_POLICY(SET CMP0048 NEW)
+PROJECT(chatnet VERSION 2 DESCRIPTION "real-time client to chatnet-server" HOMEPAGE_URL "https://github.com/midnqp/chatnet-cli" LANGUAGES C)
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
+
+ADD_LIBRARY(util SHARED ./util.c) 
+ADD_LIBRARY(string SHARED ./string.c) 
+ADD_LIBRARY(sioclient SHARED ./sio-client.c) 
+ADD_LIBRARY(autofree SHARED ./autofree.c) 
+ADD_LIBRARY(db SHARED ./db.c) 
+
+ADD_EXECUTABLE(chatnet client.c)
+TARGET_LINK_LIBRARIES(chatnet autofree string util db sioclient leveldb)
+TARGET_COMPILE_OPTIONS(chatnet PRIVATE -Wall -Wextra -g -fsanitize=address)
+TARGET_LINK_OPTIONS(chatnet PRIVATE -g -fsanitize=address)
