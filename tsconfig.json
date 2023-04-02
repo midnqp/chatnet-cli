@@ -1,0 +1,18 @@
+{
+  "typeAcquisition": { "enable": true },
+  "compilerOptions": {
+    "target": "ESNext",
+    "moduleResolution": "node",
+    "module": "ESNext",
+
+    "strict": true,
+    "allowJs": true,
+
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+
+    "outDir": "dist"
+  },
+  "include": ["./client.ts"]
+}
