@@ -32,11 +32,13 @@ status init(char *execname) {
 	char *cmd = strinit(1);
 	strappend(&cmd, sioclientpath);
 	strappend(&cmd, " &");
-	int opened = system(cmd);
-	if (opened == -1) {
-		err.code = 5;
-		sprintf(err.msg, "launch of \"%s\" failed.", sioc_name);
-		return err;
+	if (getenv("CHATNET_NOSIOCLIENT") == NULL) {
+		int opened = system(cmd);
+		if (opened == -1) {
+			err.code = 5;
+			sprintf(err.msg, "launch of \"%s\" failed.", sioc_name);
+			return err;
+		}
 	}
 
 	// executable creates the database path
@@ -58,9 +60,9 @@ status init(char *execname) {
 	return err;
 }
 
-void sioclientinit(char* execname) {
+void sioclientinit(char *execname) {
 	status err = init(execname);
-	if (err.code !=0) {
+	if (err.code != 0) {
 		fprintf(stderr, "fatal: %s\n", err.msg);
 		exit(2);
 	}

@@ -17,13 +17,7 @@ void strrealloc(char **dest, char *src) {
 		else if (*dest[ptr_len - 1] != '\0')
 			total++;
 
-		freeable_remove(*dest);
-		*dest = realloc(*dest, total);
-		// in modern sysetms, that never fails. 0%.
-		// that was a major error, since realloc freed the pointer
-		// which was noted by libautofree.
-		// that's why, adding back this pointer to libautofree.
-		freeable_add(*dest);
+		*dest = autofree_realloc(*dest, total);
 	}
 }
 
@@ -32,8 +26,3 @@ void strappend(char **dest, char *src) {
 	strrealloc(dest, src);
 	strcat(*dest, src);
 }
-
-typedef struct {
-	char *str;
-	size_t len;
-} string;

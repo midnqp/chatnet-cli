@@ -14,6 +14,6 @@
 #include "string.h"
 #include "util.h"
 
-void sioclientinit();
+void sioclientinit(char* execname);
 
 #endif // ends CHATNET_SIOCLIENT_H_

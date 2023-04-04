@@ -25,7 +25,7 @@ void leveldbcleanup() {
 void leveldbinit() {
 	if (f_dbinited == false) {
 		int timeoutc = 0;
-		char* dbdir = getdbdir();
+		char *dbdir = getdbdir();
 		char *dbpath = getdbpath();
 		char *lockfile = getdblockfile();
 
@@ -61,7 +61,7 @@ void leveldbinit() {
 		long filesize = ftell(dbfile);
 		rewind(dbfile);
 
-		char *contents = strinit(filesize+1);
+		char *contents = strinit(filesize + 1);
 		size_t readsize = fread(contents, 1, filesize, dbfile);
 		rewind(dbfile);
 		if (readsize != filesize) {
@@ -83,20 +83,20 @@ void leveldbinit() {
 
 char *leveldbget(const char *key) {
 	leveldbinit();
-	char *val = "";
+	char *result = NULL;
 
-	json_object *valjson = json_object_object_get(jsondb, key);
-	if (valjson != NULL) {
-		val = json_object_get_string(valjson);
-	}
+	json_object *value = json_object_object_get(jsondb, key);
+	if (value != NULL)
+		result = json_object_get_string(value);
+
 	leveldbcleanup();
-	return val;
+	return result;
 }
 
 void leveldbput(const char *key, const char *val) {
 	leveldbinit();
 	json_object_object_add(jsondb, key, json_object_new_string(val));
-	const char* contents = json_object_to_json_string(jsondb);
+	const char *contents = json_object_to_json_string(jsondb);
 	fputs(contents, dbfile);
 	leveldbcleanup();
 }
