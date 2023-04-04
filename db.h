@@ -1,17 +1,19 @@
 #ifndef CHATNET_DB_H_
 #define CHATNET_DB_H_
 
-#include <leveldb/c.h>
+#include <rocksdb/c.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
+#include <json-c/json.h>
 
 #include "autofree.h"
 #include "string.h"
 #include "util.h"
 
 /* in case of any error, this is populated */
-char *leveldberr = NULL;
+//char *leveldberr = NULL;
 
 void leveldbinit();
 
