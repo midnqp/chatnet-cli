@@ -3,22 +3,10 @@
 
 #include <stdbool.h>
 #include <unistd.h>
+#include <sys/stat.h>
+
+#include "./deps/sc/sc_log.h"
 #include "string.h"
-
-#ifndef DEBUG
-#define DEBUG 0
-#endif
-
-// TODO remove
-#define _add(a, b, c) a b c
-
-// TODO remove
-#define logdebug(label, ...)                                                   \
-	if (DEBUG) {                                                               \
-		/* blue bg color */                                                    \
-		const char *l = _add("\033[104m", label, "\033[0m ");       \
-		printf(l __VA_ARGS__);                                            \
-	}
 
 typedef struct {
 	/* ok = 0
@@ -34,8 +22,44 @@ typedef struct {
 	char msg[1024];
 } status;
 
+static bool f_log_inited = false;
+
 bool entexists(char *filename);
 
-char *getdbpath(); 
+char *getdbdir();
+
+char *getdbpath();
+
+char *getdblockfile();
+
+char* getdbunlockfile();
+
+char *getlogprevfile();
+
+char *getloglatestfile();
+
+void log_cleanup();
+
+void unsetdblock();
+
+void setdblock();
+
+void createnewdb();
+
+#define logdebug(...)                                                          \
+	do {                                                                       \
+		const char *debug = getenv("CHATNET_DEBUG");                           \
+		if (debug != NULL) {                                                   \
+			if (f_log_inited == false) {                                       \
+				sc_log_init();                                                 \
+				sc_log_set_stdout(false);\
+				sc_log_set_file(getlogprevfile(), getloglatestfile());         \
+				atexit(log_cleanup);                                           \
+				f_log_inited = true;                                           \
+			}                                                                  \
+                                                                               \
+			sc_log_info(__VA_ARGS__);                                         \
+		}                                                                      \
+	} while (0)
 
 #endif // CHATNET_UTIL_H_
