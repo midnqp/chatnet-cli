@@ -205,8 +205,8 @@ void *thread_msg_write() {
 int main(int argc, char *argv[]) {
 	sc_log_set_thread_name("thread-main");
 	logdebug("hi\n");
-	/*GC_INIT();*/
-	atexit(dealloc);
+	GC_INIT();
+	/*atexit(dealloc);*/
 
 	createnewdb();
 	initnewdb();

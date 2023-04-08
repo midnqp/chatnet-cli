@@ -1,9 +1,10 @@
 #include <gc/gc.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "autofree.h"
-
 #ifndef DEBUG
-#define DEBUG 0
+#define DEBUG 1
 #endif
 #define _add(a, b) a b
 #define debuglog(label, ...)                                                   \
@@ -12,7 +13,7 @@
 			printf(_add(_add("\033[104m", label), "\033[0m") __VA_ARGS__);     \
 	} while (0);
 
-void **freeable_list;
+static void **freeable_list;
 int freeable_count = 0;
 
 int isptreq(void *p1, void *p2) {
@@ -47,6 +48,10 @@ void freeable_add(void *ptr) {
 		size_t sz = (freeable_count + 1) * sizeof(void *);
 		// TODO realloc for 5 pointers each time
 		freeable_list = realloc(freeable_list, sz);
+		if (freeable_list == NULL) {
+			fprintf(stderr, "realloc in freeable_add() failed - bad!\n");
+			exit(2);
+		}
 		freeable_list[freeable_count] = ptr;
 		freeable_count++;
 	}

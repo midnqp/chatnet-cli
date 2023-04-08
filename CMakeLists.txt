@@ -1,6 +1,6 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.13)
 CMAKE_POLICY(SET CMP0048 NEW)
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0 -g -Wall -Wextra  ")
+SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0 -g -Wall -Wextra  -fsanitize=address")
 PROJECT(chatnet VERSION 2 DESCRIPTION "real-time client to chatnet-server" HOMEPAGE_URL "https://github.com/midnqp/chatnet-cli" LANGUAGES C)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/deps)
@@ -13,14 +13,14 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/deps)
 #ADD_LIBRARY(linenoise SHARED ./deps/linenoise/linenoise.c)
 #ADD_LIBRARY(sc SHARED ./deps/sc/sc_log.c)
 
-ADD_LIBRARY(libraries STATIC ./util.c ./string.c ./sio-client.c ./autofree.c ./db.c)
+ADD_LIBRARY(libraries STATIC ./util.c ./string.c ./sio-client.c ./db.c)
 ADD_LIBRARY(deps STATIC ./deps/linenoise/linenoise.c ./deps/sc/sc_log.c)
 
 
 ADD_EXECUTABLE(chatnet client.c)
 
 
-TARGET_LINK_LIBRARIES(chatnet libraries deps json-c uuid )
+TARGET_LINK_LIBRARIES(chatnet libraries deps json-c uuid gc)
 #TARGET_LINK_LIBRARIES(chatnet sioclient util autofree string  db json-c uuid linenoise sc)
 
 
