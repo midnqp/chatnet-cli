@@ -11,12 +11,11 @@
 
 #include "autofree.h"
 #include "db.h"
-#include "string.h"
+#include "str.h"
 #include "util.h"
 
 void sioclientinit(char* execname);
 
-static void sioclientcleanup() { leveldbput("userstate", "false"); }
-
+void sioclientcleanup();
 
 #endif // ends CHATNET_SIOCLIENT_H_

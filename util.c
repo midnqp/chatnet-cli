@@ -1,7 +1,21 @@
+#include <json-c/json.h>
+#include <json-c/json_types.h>
+#include <stdbool.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <uuid/uuid.h>
 
-#include "util.h"
+#include "./deps/sc/sc_log.h"
+#include "str.h"
 #include "db.h"
+#include "util.h"
+
+void log_cleanup() {
+	if (!f_log_inited)
+		return;
+	sc_log_term();
+	f_log_inited = false;
+}
 
 /* check if file or folder exists */
 bool entexists(char *filename) { return access(filename, F_OK) != -1; }
@@ -15,7 +29,7 @@ char *getdbdir() {
 
 char *getdbpath() {
 	char *dir = getdbdir();
-	strappend(&dir, "/db.json");
+	strappend(&dir, "/ipc.json");
 	return dir;
 }
 
@@ -45,22 +59,16 @@ char *getlogprevfile() {
 
 void setdblock() { rename(getdbunlockfile(), getdblockfile()); }
 
-void unsetdblock() { 
-	/*logdebug("lock -> unlock\n"); */
-	rename(getdblockfile(), getdbunlockfile()); 
-	/*logdebug("found unlockfile: %s\n", entexists(getdbunlockfile())? "true":"false");*/
-}
+void unsetdblock() { rename(getdblockfile(), getdbunlockfile()); }
 
-/* no need to invoke this manually, invoked by
- * leveldbinit() from db.c, according to conditions
- */
 void createnewdb() {
 	char *dbpath = getdbpath();
 	char *dbdir = getdbdir();
 	char *unlockfile = getdbunlockfile();
 	char *lockfile = getdblockfile();
 
-	/*rmdir(dbdir);*/
+	if (!entexists(dbdir))
+		mkdir(dbdir, 0700);
 	if (entexists(lockfile))
 		unlink(lockfile);
 	if (entexists(unlockfile))
@@ -68,7 +76,6 @@ void createnewdb() {
 	if (entexists(dbpath))
 		unlink(dbpath);
 
-	mkdir(dbdir, 0700);
 	FILE *dbfile = fopen(dbpath, "a+");
 	fputs("{}\n", dbfile);
 	fclose(dbfile);
@@ -81,9 +88,6 @@ char *genusername() {
 	uuid_t uuid;
 	uuid_generate(uuid);
 	uuid_unparse_lower(uuid, uuidstr);
-	/*char *idxptr = strchr(uuidstr, '-');*/
-	/*int idx = -1;*/
-	/*idx = idxptr - uuidstr;*/
 	strcpy(username, uuidstr);
 	return username;
 }
@@ -95,15 +99,7 @@ void initnewdb() {
 	leveldbput("username", genusername());
 }
 
-void initnewdb_raw() {
-}
-
-void log_cleanup() {
-	if (f_log_inited == true) {
-		sc_log_term();
-		f_log_inited = false;
-	}
-}
+void initnewdb_raw() {}
 
 char *file_read(const char *filename) {
 	FILE *file = fopen(filename, "rb");
@@ -114,7 +110,7 @@ char *file_read(const char *filename) {
 	size_t filesize = ftell(file);
 	rewind(file);
 	char *result = strinit(filesize + 1);
-	size_t readsize = fread(result, sizeof(char), filesize, file);
+	fread(result, sizeof(char), filesize, file);
 	result[filesize] = '\0';
 	fclose(file);
 	return result;
@@ -127,10 +123,8 @@ void file_write(const char *filename, const char *contents) {
 }
 
 void json_parse_check(json_object *o, const char *str) {
-	enum json_tokener_error error = json_tokener_get_error(o);
-    if (error != json_tokener_success) {
+	if (o == NULL) {
 		sc_log_error("json parse failed for string:\n%s", str);
 		exit(4);
 	}
 }
-

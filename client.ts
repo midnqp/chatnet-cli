@@ -1,119 +1,109 @@
-import util from 'util'
-import os from 'os'
+import assert from 'node:assert'
+import { inspect } from 'node:util'
+import path from 'node:path'
 import socketioclient from 'socket.io-client'
 import fs from 'fs-extra'
 const serverurl = 'https://chatnet-server.midnqp.repl.co'
 const io = socketioclient(serverurl)
-const dbtimeoutMs = 15000 as const
-let dbdir = ''
-let dbpath = ''
+
+const IPCTIMEOUT = 15000 as const
+const IPCDIR = getIpcDir()
+const IPCPATH = path.join(IPCDIR, 'ipc.json')
+const IPCLOCKF = path.join(IPCDIR, 'LOCK')
+const IPCUNLOCKF = path.join(IPCDIR, 'UNLOCK')
+const IPCLOGF = path.join(IPCDIR, 'log-latest.txt')
+const CLIENTUPF = path.join(IPCDIR, 'CLIENTUP')
 
 main()
 
 async function main() {
-    dbdir = await getDBdir()
-    dbpath = getDBpath()
-    logdebug('hi')
+    if (!IPCDIR) return console.error('database not found')
+
+    logDebug('hi')
+    setClientUp()
 
     try {
-        // TODO upload file, and delete after 5 min, regardless anything :)
-        // TODO voice message ;) too much idea
-
-        logdebug("listening for 'broadcast'")
+        logDebug("listening for 'broadcast'")
         io.on('broadcast', (msg: SioMessage) => {
-            dbDo(() => dbGet('recvmsgbucket')).then(
-                async (recvmsgbucket: any) => {
-                    const arr: DbMsgBucket = JSON.parse(recvmsgbucket)
-                    //arr.push(JSON.parse(msg))
-                    if (Array.isArray(arr)) {
-                        arr.push(msg)
-                        const arrstr = JSON.stringify(arr)
-                        await dbDo(() => dbPut('recvmsgbucket', arrstr))
-                    }
-                }
-            )
+            const handleNewMsg = async (bucket: string) => {
+                const arr: IpcMsgBucket = JSON.parse(bucket)
+                if (!Array.isArray(arr)) return
+                arr.push(msg)
+                const arrstr = JSON.stringify(arr)
+                await ipcExec(() => ipcPut('recvmsgbucket', arrstr))
+            }
+            ipcExec(() => ipcGet('recvmsgbucket')).then(handleNewMsg)
         })
 
-        logdebug('send-msg-loop starting')
+        logDebug('send-msg-loop starting')
         while (await toLoop()) {
-            try {
-                const sendbucket = await dbDo(() => dbGet('sendmsgbucket'))
-                let sendbucketarr: DbMsgBucket = JSON.parse(sendbucket)
+            const bucket = await ipcExec(() => ipcGet('sendmsgbucket'))
+            let arr: IpcMsgBucket = JSON.parse(bucket)
 
-                if (sendbucketarr.length) {
-                    await dbDo(() => dbPut('sendmsgbucket', '[]'))
-                    logdebug('found sendmsgbucket', sendbucketarr)
-                    for (let item of sendbucketarr) {
-                        if (item.type == 'message') {
-                            logdebug('sending message', item)
-                            io.emit('message', item)
-                        }
+            if (arr.length) {
+                await ipcExec(() => ipcPut('sendmsgbucket', '[]'))
+                logDebug('found sendmsgbucket', arr)
+                for (let item of arr) {
+                    if (item.type == 'message') {
+                        logDebug('sending message', item)
+                        io.emit('message', item)
                     }
                 }
-            } catch (err) {
-                logdebug('something went wrong', err)
-                throw err
             }
 
             await sleep(1000)
         }
-        logdebug('loop ended, closing socket.io')
+        logDebug('loop ended, closing socket.io')
         io.close()
     } catch (err) {
-        logdebug('something went very wrong', err)
-        throw err
+        logDebug('something went very wrong', err)
     }
-    logdebug('bye')
-}
+    setClientDown()
+    logDebug('bye')
+} // ends main()
 
-async function dbGet(key) {
+async function ipcGet(key: string) {
     while (true) {
         try {
-            const dbstr = await fs.readFile(dbpath, 'utf8')
-            logdebug(`dbGet: db.json: `, dbstr)
-            const dbjson = JSON.parse(dbstr)
-            //let dbjson:any = await fs.readFile(dbpath)
-            //logdebug(`dbGet: key=${key} db=${JSON.stringify(dbjson)}`)
-            let value = dbjson[key]
+            const str = await fs.readFile(IPCPATH, 'utf8')
+            logDebug(`ipcGet: ipc.json: `, str)
+            const json = JSON.parse(str)
+            let value = json[key]
             if (value === undefined) value = null
-            //logdebug(`................. value=${value}`)
             return value
         } catch (e) {
-            logdebug('dbGet: something failed: retry')
+            logDebug('ipcGet: something failed: retry', e)
             await sleep(50)
         }
     }
 }
 
-async function dbPut(key, val) {
+async function ipcPut(key: string, val: string) {
     while (true) {
         try {
-            const dbstr = await fs.readFile(dbpath, 'utf8')
-            logdebug(`dbPut: db.json: `, dbstr)
-            const dbjson = JSON.parse(dbstr)
-            //const dbjson = await fs.readJson(dbpath)
-            //logdebug(`dbPut: key=${key} value=${val} db=${JSON.stringify(dbjson)}`)
-            dbjson[key] = val
-            await fs.writeJson(dbpath, dbjson)
-            //const contents = JSON.stringify(dbjson)
-            //await fs.writeFile(dbpath, contents)
+            const str = await fs.readFile(IPCPATH, 'utf8')
+            logDebug(`ipcPut: ipc.json: `, str)
+            const json = JSON.parse(str)
+            json[key] = val
+            await fs.writeJson(IPCPATH, json)
             return
         } catch (e) {
-            logdebug('dbPut: something failed: retry')
+            logDebug('ipcPut: something failed: retry',e)
             await sleep(50)
         }
     }
 }
 
-function logdebug(...any) {
+/** runtime debug logs */
+function logDebug(...any) {
     if (process.env.CHATNET_DEBUG) {
         let result = ''
-        for (let each of any) result += util.inspect(each) + ' '
-        if (any.length) result.slice(0, result.length - 1) // extra whitespace
+        for (let each of any) result += inspect(each) + ' '
+        if (any.length) result.slice(0, result.length - 1)
 
         const d = new Date().toISOString()
         const str = '[sio-client]  ' + d + '  ' + result + '\n'
-        fs.appendFileSync(getlogfile(), str)
+        fs.appendFileSync(IPCLOGF, str)
     }
 }
 
@@ -121,7 +111,7 @@ function logdebug(...any) {
 async function toLoop() {
     let result = true
     try {
-        const userstate = await dbDo(() => dbGet('userstate'))
+        const userstate = await ipcExec(() => ipcGet('userstate'))
         if (userstate == 'false') result = false
         //else result = false
     } catch (err) {
@@ -135,90 +125,75 @@ function sleep(ms: number) {
     return new Promise(r => setTimeout(r, ms))
 }
 
-async function getDBdir() {
-    let path = ''
-    if (os.platform() == 'linux') {
-        path = process.env.HOME + '/.config/chatnet-client'
-        await fs.ensureDir(path)
+function getIpcDir() {
+    let p = ''
+    if (process.platform == 'linux') {
+        const HOME = process.env.HOME
+        assert(HOME !== undefined)
+        p = path.join(HOME, '.config', 'chatnet-client')
     }
-    return path
+    return p
 }
 
-function getDBpath() {
-    return dbdir + '/db.json'
-}
-
-function getDBlockfile() {
-    return dbdir + '/LOCK'
-}
-
-function getDBunlockfile() {
-    return dbdir + '/UNLOCK'
-}
-
-function getlogfile() {
-    return dbdir + '/log-latest.txt'
-}
-
-async function setDBlock() {
+async function setIpcLock() {
     while (true) {
         try {
-            await fs.rename(getDBunlockfile(), getDBlockfile())
-            //logdebug('success: db locked')
+            await fs.rename(IPCUNLOCKF, IPCLOCKF)
             break
         } catch (err) {
-            //logdebug('failed setting lock, retyring')
             await sleep(50)
         }
     }
 }
 
-async function unsetDBlock() {
+async function unsetIpcLock() {
     while (true) {
         try {
-            await fs.rename(getDBlockfile(), getDBunlockfile())
-            //logdebug('success: db unlocked')
+            await fs.rename(IPCLOCKF, IPCUNLOCKF)
             break
         } catch (err) {
-            //logdebug('failed unsetting lock, retyring')
             await sleep(50)
         }
     }
 }
 
-async function dbDo(fn: (db) => Promise<any>) {
+function setClientUp() {
+    fs.ensureFileSync(CLIENTUPF)
+}
+
+function setClientDown() {
+    fs.unlinkSync(CLIENTUPF)
+}
+
+async function ipcExec(fn: () => Promise<any>) {
     let ms = 0
-    const lockfile = getDBlockfile()
-    const unlockfile = getDBunlockfile()
     let result: any
     let fnExecuted = false
 
-    while (ms < dbtimeoutMs) {
-        const existsLock = await fs
-            .access(lockfile)
-            .then(_ => true)
-            .catch(_ => false)
-        const existsUnlock = await fs
-            .access(unlockfile)
-            .then(_ => true)
-            .catch(_ => false)
+    while (ms < IPCTIMEOUT) {
+        const existsLock = await fs.exists(IPCLOCKF)
+        const existsUnlock = await fs.exists(IPCUNLOCKF)
         if (!existsLock && existsUnlock) {
-            await setDBlock()
-            result = await fn(undefined)
+            await setIpcLock()
+            result = await fn()
             fnExecuted = true
-            await unsetDBlock()
+            await unsetIpcLock()
             break
         }
 
-        logdebug(`database locked, retrying ... (${ms}/${dbtimeoutMs}) ms`)
-        const waitMs = 100 // 500 -> 100
+        logDebug(`database locked, retrying ... (${ms}/${IPCTIMEOUT}) ms`)
+        const waitMs = 100
         ms += waitMs
         await sleep(waitMs)
     }
-    if (fnExecuted == false) throw Error('database not reachable')
+    if (fnExecuted == false) {
+        logDebug('database not reachable')
+        setClientDown()
+        process.exit()
+    }
     return result
 }
 
-type DbMsgBucket = Array<SioMessage>
+type IpcMsgBucket = Array<SioMessage>
 type SioMessage = { type: 'message'; username: string; data: string }
 type SioMeta = { type: 'file'; name: string; data: string }

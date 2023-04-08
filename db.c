@@ -1,3 +1,12 @@
+#include <stdbool.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <json-c/json.h>
+
+#include "autofree.h"
+#include "str.h"
+#include "util.h"
 #include "db.h"
 
 int timeoutinit = 10 * 1000 * 1000; // 10 seconds
@@ -14,40 +23,20 @@ void leveldbcleanup(json_object **jsondb) {
 /* idempotent db init */
 void leveldbinit(json_object **jsondb) {
 	int timeoutc = 0;
-	char *dbdir = getdbdir();
 	char *dbpath = getdbpath();
 	char *lockfile = getdblockfile();
 	char *unlockfile = getdbunlockfile();
-	/*
-			// create if missing ;)
-			if (!entexists(dbdir)) {
-				logdebug("db not found, creating db\n");
-				createnewdb();
-				initnewdb();
-			}
-			*/
 
-	bool locked = false;
-	// while (timeoutc < timeoutinit) {
 	while (true) {
 		if (!entexists(lockfile) && entexists(unlockfile)) {
 			setdblock();
-			locked = true;
 			break;
 		}
 
-		/*logdebug("database locked, retrying ... (%d/%d) ms\n", timeoutc / 1000,*/
-				 /*timeoutinit / 1000);*/
 		int waitms = 100 * 1000; // 100 ms
 		timeoutc += waitms;
 		usleep(waitms);
 	}
-	/*		if (locked == false) {
-				logdebug("conn failed, recreating db\n");
-				createnewdb();
-				initnewdb();
-				setdblock();
-			} */
 
 	char *dbcontents = file_read(dbpath);
 	*jsondb = json_tokener_parse(dbcontents);
@@ -66,13 +55,11 @@ char *leveldbget(const char *key) {
 		strappend(&result, json_object_get_string(value));
 	}
 
-	/*logdebug("leveldbget: key=%s val=%s db=%s\n", key, result, dbcontents);*/
 	leveldbcleanup(&jsondb);
 	return result;
 }
 
 void leveldbput(const char *key, const char *val) {
-	/*logdebug("leveldbput: key=%s val=%s db=%s\n", key, val, dbcontents);*/
 	json_object *jsondb;
 	leveldbinit(&jsondb);
 

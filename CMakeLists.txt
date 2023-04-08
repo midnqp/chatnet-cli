@@ -13,7 +13,7 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/deps)
 #ADD_LIBRARY(linenoise SHARED ./deps/linenoise/linenoise.c)
 #ADD_LIBRARY(sc SHARED ./deps/sc/sc_log.c)
 
-ADD_LIBRARY(libraries STATIC ./util.c ./string.c ./sio-client.c ./db.c)
+ADD_LIBRARY(libraries STATIC ./util.c ./str.c ./sio-client.c ./db.c)
 ADD_LIBRARY(deps STATIC ./deps/linenoise/linenoise.c ./deps/sc/sc_log.c)
 
 

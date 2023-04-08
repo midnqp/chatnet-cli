@@ -1,14 +1,8 @@
 #ifndef CHATNET_UTIL_H_
 #define CHATNET_UTIL_H_
 
-#include <json-c/json.h>
-#include <json-c/json_types.h>
-#include <stdbool.h>
-#include <sys/stat.h>
-#include <unistd.h>
-
 #include "./deps/sc/sc_log.h"
-#include "string.h"
+#include <json-c/json_types.h>
 
 typedef struct {
 	/* ok = 0
@@ -26,6 +20,23 @@ typedef struct {
 
 static bool f_log_inited = false;
 
+#define logdebug(...)                                                          \
+	do {                                                                       \
+		const char *debug = getenv("CHATNET_DEBUG");                           \
+		if (debug == NULL)                                                     \
+			break;                                                             \
+		if (!f_log_inited) {                                                   \
+			sc_log_init();                                                     \
+			sc_log_set_stdout(false);                                          \
+			sc_log_set_file(getlogprevfile(), getloglatestfile());             \
+                                                                               \
+			atexit(log_cleanup);                                               \
+			f_log_inited = true;                                               \
+		}                                                                      \
+                                                                               \
+		sc_log_info(__VA_ARGS__);                                              \
+	} while (0)
+
 bool entexists(char *filename);
 
 char *getdbdir();
@@ -40,8 +51,6 @@ char *getlogprevfile();
 
 char *getloglatestfile();
 
-void log_cleanup();
-
 void unsetdblock();
 
 void setdblock();
@@ -50,26 +59,12 @@ void createnewdb();
 
 void initnewdb();
 
-char* file_read(const char* filename);
+char *file_read(const char *filename);
 
-void file_write(const char* filename, const char* contents);
+void file_write(const char *filename, const char *contents);
 
-void json_parse_check(json_object *o, const char *str) ;
+void json_parse_check(json_object *o, const char *str);
 
-#define logdebug(...)                                                          \
-	do {                                                                       \
-		const char *debug = getenv("CHATNET_DEBUG");                           \
-		if (debug != NULL) {                                                   \
-			if (f_log_inited == false) {                                       \
-				sc_log_init();                                                 \
-				sc_log_set_stdout(false);                                      \
-				sc_log_set_file(getlogprevfile(), getloglatestfile());         \
-				atexit(log_cleanup);                                           \
-				f_log_inited = true;                                           \
-			}                                                                  \
-                                                                               \
-			sc_log_info(__VA_ARGS__);                                          \
-		}                                                                      \
-	} while (0)
+void log_cleanup();
 
 #endif // CHATNET_UTIL_H_

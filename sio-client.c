@@ -1,4 +1,5 @@
 #include "sio-client.h"
+#include "db.h"
 
 char *sioc_name = "chatnet-sio-client";
 
@@ -68,3 +69,6 @@ void sioclientinit(char *execname) {
 		exit(2);
 	}
 }
+
+
+void sioclientcleanup() {leveldbput("userstate", "false");}

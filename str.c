@@ -2,7 +2,7 @@
 #include <string.h>
 
 #include "autofree.h"
-#include "string.h"
+#include "str.h"
 
 char *strinit(size_t len) {
 	char *s = alloc(len);
