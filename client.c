@@ -1,4 +1,4 @@
-#include <libgen.h>
+#include <gc/gc.h>
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -6,14 +6,16 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <json-c/json.h>
 #include "deps/linenoise/linenoise.h"
+#include <json-c/json.h>
+#include <uuid/uuid.h>
 
 #include "autofree.h"
 #include "db.h"
+#include "deps/sc/sc_log.h"
+#include "sio-client.h"
 #include "string.h"
 #include "util.h"
-#include "sio-client.h"
 
 /* 0 = null
  * 1 = please exit whenever you can asap
@@ -29,93 +31,110 @@ int f_thread_msg_write = 0;
 /*pthread_mutex_t mutex_thread_msg_write_dead = PTHREAD_MUTEX_INITIALIZER;*/
 pthread_t id_thread_msg_write = 0;
 /* local sendbucket to store sent messages */
-char* sendbucket[64]; // so that it gets freed by os in case of crash.
+char *sendbucket[1024]; // so that it gets freed by os in case of crash.
 int sendbucketc = 0;
-char linenoise_buffer[1024*1024] = "";
-const char* linenoise_prompt = ">";
+char linenoise_buffer[1024 * 1024] = "";
+char *linenoise_prompt = ">";
+char *username = NULL;
 
 void *thread_msg_print();
 void *thread_msg_write();
 
+
+
 void sendbuckets_add() {
-	char* _buffer = strdup(linenoise_buffer);
-	char* strbuffer = strinit(1);
+	char *_buffer = strdup(linenoise_buffer);
+	char *strbuffer = strinit(1);
 	strappend(&strbuffer, _buffer);
 	sendbucket[sendbucketc++] = _buffer; // freed by sendbucket_get() or by OS
 	linenoise_buffer[0] = '\0';
 
-	/*struct json_object* json = json_object_new_object();*/
-	/*json_object_object_add(json, "username",json_object_new_string( "midnqp"));*/
-	/*json_object_object_add(json, "type",json_object_new_string( "message"));*/
-	/*json_object_object_add(json, "data",json_object_new_string(strbuffer));*/
+	json_object *json = json_object_new_object();
+	json_object_object_add(json, "username", json_object_new_string("midnqp"));
+	json_object_object_add(json, "type", json_object_new_string("message"));
+	json_object_object_add(json, "data", json_object_new_string(strbuffer));
+	logdebug("source object: %s\n", json_object_to_json_string(json));
 
 	// read existing array, and add this at the end
-	char* sendmsgbucket = leveldbget("sendmsgbucket"); // "[...]"
-	/*struct json_object* sendmsgbucketarr = json_tokener_parse(sendmsgbucket);*/
-	/*json_object_array_add(sendmsgbucketarr, json);*/
+	char *bucket = leveldbget("sendmsgbucket"); // "[...]"
+	logdebug("sendbuckets_add: leveldbget:%zu %s\n", strlen(bucket), bucket);
+	json_object *bucketarr = json_tokener_parse(bucket);
+	json_parse_check(bucketarr, bucket);
+	json_object_array_add(bucketarr, json);
 
-	/*const char* newmsgarr = json_object_to_json_string(sendmsgbucketarr);*/
-	/*leveldbput("sendmsgbucket", newmsgarr);*/
+	const char *dbarr = json_object_to_json_string(bucketarr);
+	leveldbput("sendmsgbucket", dbarr);
+	json_object_put(bucketarr);
 	/*json_object_put(json);*/
-	/*json_object_put(sendmsgbucketarr);*/
 }
 
-char* sendbucket_get() {
-	char* result = strinit(1);
-	for (int i=0; i<sendbucketc; i++) {
+char *sendbucket_get() {
+	char *result = strinit(1);
+	for (int i = 0; i < sendbucketc; i++) {
 		strappend(&result, "You: ");
 		strappend(&result, sendbucket[i]);
 		strappend(&result, "\r\n");
-		free(sendbucket[i]);
+		autofree_free(sendbucket[i]);
 	}
 	sendbucketc = 0;
 	return result;
 }
 
-char* recvbucket_get() {
-	return "";
-	/*char* arr = leveldbget("recvmsgbucket");*/
-	/*json_object* obj = json_tokener_parse(arr);*/
+
+char *recvbucket_get() {
+	char *result = strinit(1);
+	char *arr = leveldbget("recvmsgbucket");
+	if (strlen(arr) < 3) return "";
+	leveldbput("recvmsgbucket", "[]");
+	json_object *arrj = json_tokener_parse(arr);
+	json_parse_check(arrj, arr);
+	size_t len = json_object_array_length(arrj);
+	for (int i = 0; i < len; i++) {
+		json_object *o = json_object_array_get_idx(arrj, i);
+		json_parse_check(o, arr);
+		json_object *jusername = json_object_object_get(o, "username");
+		json_parse_check(jusername, arr);
+		const char *sender = json_object_get_string(jusername);
+		if (strcmp(sender, username) == 0)
+			continue;
+		json_object *jdata = json_object_object_get(o, "data");
+		json_parse_check(jdata, arr);
+		const char *message = json_object_get_string(jdata);
+		strappend(&result, sender);
+		strappend(&result, ": ");
+		strappend(&result, message);
+		strappend(&result, "\r\n");
+	}
+	json_object_put(arrj);
+	return result;
 }
 
 void *thread_msg_print() {
-	pthread_detach(pthread_self());
-	int timeoutc= 0;
+	/*pthread_detach(pthread_self());*/
+	sc_log_set_thread_name("thread-msg-print");
+	logdebug("started thread-msg-print\n");
 
 	while (1) {
 		char *recvmsgfmt = recvbucket_get();
-		char *sendmsgfmt = sendbucket_get();
+		/*char *sendmsgfmt = sendbucket_get();*/
 		bool f_flush = false;
 		char *result = strinit(1);
 
 		if (strcmp(recvmsgfmt, "") != 0) {
-			/*strappend(&result, "friend_uid: ");*/
 			strappend(&result, recvmsgfmt);
-			/*strappend(&result, "\r\n");*/
 			f_flush = true;
 		}
 
-		if (strcmp(sendmsgfmt, "") != 0) {
-			/*strappend(&result, "muhammad: ");*/
-			strappend(&result, sendmsgfmt);
-			/*strappend(&result, "\r\n");*/
-			f_flush = true;
-		}
+		/*if (strcmp(sendmsgfmt, "") != 0) {*/
+		/*strappend(&result, sendmsgfmt);*/
+		/*f_flush = true;*/
+		/*}*/
 
 		if (f_flush == true) {
-			if (id_thread_msg_write) {
-				if (f_thread_msg_write == 2)  {
-					pthread_cancel(id_thread_msg_write);
-					id_thread_msg_write = 0;
-					f_thread_msg_write = 0;
-				}
-				else if (f_thread_msg_write == 4) {
-					/*f_thread_msg_write = 1;*/
-					/*pthread_mutex_lock(&f1mutex_thread_msg_write);*/
-					// that thread exited
-					/*id_thread_msg_write = 0;*/
-				/*f_thread_msg_write = 0;*/
-				}
+			if (id_thread_msg_write && f_thread_msg_write == 2) {
+				pthread_cancel(id_thread_msg_write);
+				id_thread_msg_write = 0;
+				f_thread_msg_write = 0;
 			}
 
 			printf("\33[2K\r");
@@ -123,27 +142,21 @@ void *thread_msg_print() {
 			fflush(stdout);
 			autofree_free(result);
 
-			/*if ( f_thread_msg_write == 1) { */
-				/*pthread_mutex_unlock(&mutex_thread_msg_write_dead);*/
-			/*}*/
-				
 			if (id_thread_msg_write == 0) {
 				// only create this thread, if you had cancelled earlier
 				pthread_t T3;
 				pthread_create(&T3, NULL, &thread_msg_write, NULL);
 			}
 		} else {
-			timeoutc++;
 			autofree_free(result);
-			sleep(1);
+			usleep(500 * 1000); // 500ms
 		}
 
-		if (f_thread_msg_print == 1) 
+		if (f_thread_msg_print == 1)
 			break;
-		
 	}
 
-	printf("thread-print exited\n");
+	logdebug("ended thread-msg-print\n");
 	return NULL;
 }
 
@@ -152,10 +165,11 @@ void write_msg_cleanup() {
 	id_thread_msg_write = 0;
 }
 
-
 void *thread_msg_write() {
 	id_thread_msg_write = pthread_self();
-	pthread_detach(pthread_self());
+	/*pthread_detach(pthread_self());*/
+	sc_log_set_thread_name("thread-msg-write");
+	logdebug("started thread-msg-write\n");
 	pthread_cleanup_push(write_msg_cleanup, NULL);
 
 	while (1) {
@@ -166,39 +180,51 @@ void *thread_msg_write() {
 			leveldbput("userstate", "false");
 			f_thread_msg_print = 1;
 			break;
-		} else  {
-			// TODO make this a thread, otherwise input is blocked
+		} else if (strncmp(linenoise_buffer, "/name", 5) == 0) {
+			char *username = strinit(strlen(linenoise_buffer));
+			size_t len = strlen(linenoise_buffer) - 5;
+			// TODO check: must be all alphabets, and <= 16 char long
+			strncpy(username, linenoise_buffer + 6, len);
+			username[len] = '\0';
+			leveldbput("username", username);
+			linenoise_prompt = username;
+			linenoise_buffer[0] = '\0';
+		} else {
 			f_thread_msg_write = 4;
 			sendbuckets_add();
 			f_thread_msg_write = 3;
 		}
-		
 	}
 
 	pthread_cleanup_pop(1);
-	/*id_thread_msg_write = 0;*/
-	/*f_thread_msg_write = 0;*/
-	printf("thread-write exited\n");
+	logdebug("ended thread-msg-write\n");
 	return NULL;
 }
 
-void disablerawmodefn() {
-	disableRawMode(STDIN_FILENO);
-}
 
 int main(int argc, char *argv[]) {
-
+	sc_log_set_thread_name("thread-main");
+	logdebug("hi\n");
+	/*GC_INIT();*/
 	atexit(dealloc);
-	at_quick_exit(disablerawmodefn);
 
-	/*sioclientinit(argv[0]);*/
+	createnewdb();
+	initnewdb();
+	username = leveldbget("username");
 
+	char *prompt = strinit(1);
+	strappend(&prompt, username);
+	strappend(&prompt, ": ");
+	linenoise_prompt = prompt;
 
-	/*pthread_t T2, T3;*/
-	/*pthread_create(&T2, NULL, &thread_msg_print, NULL);*/
-	/*printf("main: before pthread_create\n");*/
-	/*pthread_create(&T3, NULL, &thread_msg_write, NULL);*/
-	/*printf("main: before pthread_exit\n");*/
+	sioclientinit(argv[0]);
+	atexit(sioclientcleanup);
 
+	pthread_t T2, T3;
+	pthread_create(&T2, NULL, &thread_msg_print, NULL);
+	pthread_create(&T3, NULL, &thread_msg_write, NULL);
 	/*pthread_exit(NULL);*/
+	pthread_join(T2, NULL);
+	pthread_join(T3, NULL);
+	logdebug("bye!\n");
 }

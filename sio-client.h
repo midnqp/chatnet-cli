@@ -16,4 +16,7 @@
 
 void sioclientinit(char* execname);
 
+static void sioclientcleanup() { leveldbput("userstate", "false"); }
+
+
 #endif // ends CHATNET_SIOCLIENT_H_

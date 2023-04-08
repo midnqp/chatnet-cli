@@ -1,9 +1,11 @@
 #ifndef CHATNET_UTIL_H_
 #define CHATNET_UTIL_H_
 
+#include <json-c/json.h>
+#include <json-c/json_types.h>
 #include <stdbool.h>
-#include <unistd.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include "./deps/sc/sc_log.h"
 #include "string.h"
@@ -32,7 +34,7 @@ char *getdbpath();
 
 char *getdblockfile();
 
-char* getdbunlockfile();
+char *getdbunlockfile();
 
 char *getlogprevfile();
 
@@ -46,19 +48,27 @@ void setdblock();
 
 void createnewdb();
 
+void initnewdb();
+
+char* file_read(const char* filename);
+
+void file_write(const char* filename, const char* contents);
+
+void json_parse_check(json_object *o, const char *str) ;
+
 #define logdebug(...)                                                          \
 	do {                                                                       \
 		const char *debug = getenv("CHATNET_DEBUG");                           \
 		if (debug != NULL) {                                                   \
 			if (f_log_inited == false) {                                       \
 				sc_log_init();                                                 \
-				sc_log_set_stdout(false);\
+				sc_log_set_stdout(false);                                      \
 				sc_log_set_file(getlogprevfile(), getloglatestfile());         \
 				atexit(log_cleanup);                                           \
 				f_log_inited = true;                                           \
 			}                                                                  \
                                                                                \
-			sc_log_info(__VA_ARGS__);                                         \
+			sc_log_info(__VA_ARGS__);                                          \
 		}                                                                      \
 	} while (0)
 

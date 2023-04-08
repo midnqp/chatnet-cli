@@ -1,10 +1,13 @@
 #ifndef CHATNET_AUTOFREE_H
 #define CHATNET_AUTOFREE_H
 
-#include <malloc.h>
-#include <stdio.h>
-#include <string.h>
+#include <stddef.h>
+#include <gc.h>
 
+//#define alloc GC_malloc
+//#define autofree_realloc GC_realloc
+//#define autofree_free GC_free
+//static void dealloc() {}
 void *alloc(size_t len);
 void dealloc(); // autofree_free_all();
 void* autofree_realloc(void* ptr, size_t sz);

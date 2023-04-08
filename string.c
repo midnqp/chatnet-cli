@@ -1,3 +1,7 @@
+#include <stdlib.h>
+#include <string.h>
+
+#include "autofree.h"
 #include "string.h"
 
 char *strinit(size_t len) {
@@ -7,7 +11,7 @@ char *strinit(size_t len) {
 }
 
 /* auto reallocs target ptr based on src string! */
-void strrealloc(char **dest, char *src) {
+void strrealloc(char **dest, const char *src) {
 	int ptr_len = strlen(*dest);
 	int src_len = strlen(src);
 	if (src_len > 0) {
@@ -22,7 +26,7 @@ void strrealloc(char **dest, char *src) {
 }
 
 /* appending strings that just works! */
-void strappend(char **dest, char *src) {
+void strappend(char **dest, const char *src) {
 	strrealloc(dest, src);
 	strcat(*dest, src);
 }

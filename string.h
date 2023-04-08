@@ -1,9 +1,7 @@
 #ifndef CHATNET_STRING_H_
 #define CHATNET_STRING_H_
 
-#include "autofree.h"
-#include <stdlib.h>
-#include <string.h>
+#include <stddef.h>
 
 typedef struct {
 	char *str;
@@ -11,9 +9,7 @@ typedef struct {
 } string;
 
 char *strinit(size_t len);
-
-void strrealloc(char **dest, char *src);
-
-void strappend(char **dest, char *src);
+void strrealloc(char **dest, const char *src);
+void strappend(char **dest, const char *src);
 
 #endif // CHATNET_STRING_H_

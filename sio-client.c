@@ -33,6 +33,7 @@ status init(char *execname) {
 	strappend(&cmd, sioclientpath);
 	strappend(&cmd, " &");
 	if (getenv("CHATNET_NOSIOCLIENT") == NULL) {
+		logdebug("starting sio-client\n");
 		int opened = system(cmd);
 		if (opened == -1) {
 			err.code = 5;

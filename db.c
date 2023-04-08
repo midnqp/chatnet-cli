@@ -1,102 +1,84 @@
 #include "db.h"
 
-bool f_dbcleaned = false;
-bool f_dbinited = false;
-bool f_atexitadded = false;
-json_object *jsondb = NULL;
-FILE *dbfile = NULL;
-/* 4 million microseconds equals 4 seconds */
-static int timeoutinit = 4 * 1000 * 1000;
-char *leveldberr = NULL;
+int timeoutinit = 10 * 1000 * 1000; // 10 seconds
 
 /* idempotent db cleanup */
-void leveldbcleanup() {
-	if (f_dbcleaned == false) {
-		if (dbfile != NULL)
-			fclose(dbfile);
-		if (jsondb != NULL)
-			json_object_put(jsondb);
-		f_dbcleaned = true;
-		f_dbinited = false;
+void leveldbcleanup(json_object **jsondb) {
+	unsetdblock(); // this must work, otherwise error in algo.
+	if (*jsondb != NULL) {
+		json_object_put(*jsondb);
+		*jsondb = NULL;
 	}
 }
 
 /* idempotent db init */
-void leveldbinit() {
-	if (f_dbinited == false) {
-		int timeoutc = 0;
-		char *dbdir = getdbdir();
-		char *dbpath = getdbpath();
-		char *lockfile = getdblockfile();
-
-		// create if missing ;)
-		if (!entexists(dbdir)) {
-			logdebug("not found, creating db");
-			createnewdb();
-		}
-
-		while (timeoutc < timeoutinit) {
-			if (!entexists(lockfile)) {
-				setdblock();
-				dbfile = fopen(dbpath, "r+");
-				break;
+void leveldbinit(json_object **jsondb) {
+	int timeoutc = 0;
+	char *dbdir = getdbdir();
+	char *dbpath = getdbpath();
+	char *lockfile = getdblockfile();
+	char *unlockfile = getdbunlockfile();
+	/*
+			// create if missing ;)
+			if (!entexists(dbdir)) {
+				logdebug("db not found, creating db\n");
+				createnewdb();
+				initnewdb();
 			}
+			*/
 
-			logdebug("database locked, retrying ... (%d/%d) ms\n",
-					 timeoutc / 1000, timeoutinit / 1000);
-			int waitms = 500 * 1000;
-			timeoutc += waitms;
-			usleep(waitms); // 500ms
-		}
-		if (dbfile == NULL) {
-			/*fprintf(stderr, "database conn failed\n");*/
-			/*exit(2);*/
-			unsetdblock();
-			logdebug("conn failed, recreating database\n");
-			createnewdb();
-			dbfile = fopen(dbpath, "r+");
+	bool locked = false;
+	// while (timeoutc < timeoutinit) {
+	while (true) {
+		if (!entexists(lockfile) && entexists(unlockfile)) {
+			setdblock();
+			locked = true;
+			break;
 		}
 
-		fseek(dbfile, 0L, SEEK_END);
-		long filesize = ftell(dbfile);
-		rewind(dbfile);
-
-		char *contents = strinit(filesize + 1);
-		size_t readsize = fread(contents, 1, filesize, dbfile);
-		rewind(dbfile);
-		if (readsize != filesize) {
-			fprintf(stderr, "file read failed\n");
-			exit(5);
-		}
-		contents[filesize] = '\0';
-		jsondb = json_tokener_parse(contents);
-
-		unsetdblock();
-		f_dbinited = true;
-		f_dbcleaned = false;
-		if (!f_atexitadded) {
-			atexit(leveldbcleanup);
-			f_atexitadded = true;
-		}
+		/*logdebug("database locked, retrying ... (%d/%d) ms\n", timeoutc / 1000,*/
+				 /*timeoutinit / 1000);*/
+		int waitms = 100 * 1000; // 100 ms
+		timeoutc += waitms;
+		usleep(waitms);
 	}
+	/*		if (locked == false) {
+				logdebug("conn failed, recreating db\n");
+				createnewdb();
+				initnewdb();
+				setdblock();
+			} */
+
+	char *dbcontents = file_read(dbpath);
+	*jsondb = json_tokener_parse(dbcontents);
+	json_parse_check(*jsondb, dbcontents);
+	logdebug("parsed json: %s\n", json_object_to_json_string(*jsondb));
 }
 
 char *leveldbget(const char *key) {
-	leveldbinit();
+	json_object *jsondb;
+	leveldbinit(&jsondb);
 	char *result = NULL;
 
 	json_object *value = json_object_object_get(jsondb, key);
-	if (value != NULL)
-		result = json_object_get_string(value);
+	if (value != NULL) {
+		result = strinit(1);
+		strappend(&result, json_object_get_string(value));
+	}
 
-	leveldbcleanup();
+	/*logdebug("leveldbget: key=%s val=%s db=%s\n", key, result, dbcontents);*/
+	leveldbcleanup(&jsondb);
 	return result;
 }
 
 void leveldbput(const char *key, const char *val) {
-	leveldbinit();
+	/*logdebug("leveldbput: key=%s val=%s db=%s\n", key, val, dbcontents);*/
+	json_object *jsondb;
+	leveldbinit(&jsondb);
+
 	json_object_object_add(jsondb, key, json_object_new_string(val));
 	const char *contents = json_object_to_json_string(jsondb);
-	fputs(contents, dbfile);
-	leveldbcleanup();
+	file_write(getdbpath(), contents);
+
+	leveldbcleanup(&jsondb);
 }
