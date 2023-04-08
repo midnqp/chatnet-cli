@@ -67,27 +67,42 @@ async function main() {
 }
 
 async function dbGet(key) {
-    const dbstr = await fs.readFile(dbpath, 'utf8')
-    logdebug(`dbGet: db.json: `, dbstr)
-    const dbjson = JSON.parse(dbstr)
-    //let dbjson:any = await fs.readFile(dbpath)
-    //logdebug(`dbGet: key=${key} db=${JSON.stringify(dbjson)}`)
-    let value = dbjson[key]
-    if (value === undefined) value = null
-    //logdebug(`................. value=${value}`)
-    return value
+    while (true) {
+        try {
+            const dbstr = await fs.readFile(dbpath, 'utf8')
+            logdebug(`dbGet: db.json: `, dbstr)
+            const dbjson = JSON.parse(dbstr)
+            //let dbjson:any = await fs.readFile(dbpath)
+            //logdebug(`dbGet: key=${key} db=${JSON.stringify(dbjson)}`)
+            let value = dbjson[key]
+            if (value === undefined) value = null
+            //logdebug(`................. value=${value}`)
+            return value
+        } catch (e) {
+            logdebug('dbGet: something failed: retry')
+            await sleep(50)
+        }
+    }
 }
 
 async function dbPut(key, val) {
-    const dbstr = await fs.readFile(dbpath, 'utf8')
-    logdebug(`dbPut: db.json: `, dbstr)
-    const dbjson = JSON.parse(dbstr)
-    //const dbjson = await fs.readJson(dbpath)
-    //logdebug(`dbPut: key=${key} value=${val} db=${JSON.stringify(dbjson)}`)
-    dbjson[key] = val
-    await fs.writeJson(dbpath, dbjson)
-    //const contents = JSON.stringify(dbjson)
-    //await fs.writeFile(dbpath, contents)
+    while (true) {
+        try {
+            const dbstr = await fs.readFile(dbpath, 'utf8')
+            logdebug(`dbPut: db.json: `, dbstr)
+            const dbjson = JSON.parse(dbstr)
+            //const dbjson = await fs.readJson(dbpath)
+            //logdebug(`dbPut: key=${key} value=${val} db=${JSON.stringify(dbjson)}`)
+            dbjson[key] = val
+            await fs.writeJson(dbpath, dbjson)
+            //const contents = JSON.stringify(dbjson)
+            //await fs.writeFile(dbpath, contents)
+            return
+        } catch (e) {
+            logdebug('dbPut: something failed: retry')
+            await sleep(50)
+        }
+    }
 }
 
 function logdebug(...any) {
@@ -113,7 +128,6 @@ async function toLoop() {
         //result = false
         result = true
     }
-    logdebug('found userstate=' + result + ', ending loop')
     return result
 }
 
