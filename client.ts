@@ -40,13 +40,14 @@ async function main() {
                 const sendbucket = await dbDo(() => dbGet('sendmsgbucket'))
                 let sendbucketarr: DbMsgBucket = JSON.parse(sendbucket)
 
-                if (!sendbucketarr.length) continue
-                await dbDo(() => dbPut('sendmsgbucket', '[]'))
-                logdebug('found sendmsgbucket', sendbucketarr)
-                for (let item of sendbucketarr) {
-                    if (item.type == 'message') {
-                        logdebug('sending message', item)
-                        io.emit('message', item)
+                if (sendbucketarr.length) {
+                    await dbDo(() => dbPut('sendmsgbucket', '[]'))
+                    logdebug('found sendmsgbucket', sendbucketarr)
+                    for (let item of sendbucketarr) {
+                        if (item.type == 'message') {
+                            logdebug('sending message', item)
+                            io.emit('message', item)
+                        }
                     }
                 }
             } catch (err) {
@@ -54,7 +55,7 @@ async function main() {
                 throw err
             }
 
-            await sleep(0.5 * 1000)
+            await sleep(1000)
         }
         logdebug('loop ended, closing socket.io')
         io.close()
@@ -66,9 +67,9 @@ async function main() {
 }
 
 async function dbGet(key) {
-	const dbstr = await fs.readFile(dbpath, 'utf8')
-	logdebug(`dbGet: db.json: `, dbstr)
-	const dbjson = JSON.parse(dbstr)
+    const dbstr = await fs.readFile(dbpath, 'utf8')
+    logdebug(`dbGet: db.json: `, dbstr)
+    const dbjson = JSON.parse(dbstr)
     //let dbjson:any = await fs.readFile(dbpath)
     //logdebug(`dbGet: key=${key} db=${JSON.stringify(dbjson)}`)
     let value = dbjson[key]
@@ -78,9 +79,9 @@ async function dbGet(key) {
 }
 
 async function dbPut(key, val) {
-	const dbstr = await fs.readFile(dbpath, 'utf8')
-	logdebug(`dbPut: db.json: `, dbstr)
-	const dbjson = JSON.parse(dbstr)
+    const dbstr = await fs.readFile(dbpath, 'utf8')
+    logdebug(`dbPut: db.json: `, dbstr)
+    const dbjson = JSON.parse(dbstr)
     //const dbjson = await fs.readJson(dbpath)
     //logdebug(`dbPut: key=${key} value=${val} db=${JSON.stringify(dbjson)}`)
     dbjson[key] = val
@@ -109,9 +110,10 @@ async function toLoop() {
         if (userstate == 'false') result = false
         //else result = false
     } catch (err) {
-		//result = false
-		result=true
-	}
+        //result = false
+        result = true
+    }
+    logdebug('found userstate=' + result + ', ending loop')
     return result
 }
 
