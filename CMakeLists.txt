@@ -1,28 +1,43 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.13)
 CMAKE_POLICY(SET CMP0048 NEW)
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0 -g -Wall -Wextra  -fsanitize=address")
 PROJECT(chatnet VERSION 2 DESCRIPTION "real-time client to chatnet-server" HOMEPAGE_URL "https://github.com/midnqp/chatnet-cli" LANGUAGES C)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/deps)
 
-#ADD_LIBRARY(util SHARED ./util.c) 
-#ADD_LIBRARY(string SHARED ./string.c) 
-#ADD_LIBRARY(sioclient SHARED ./sio-client.c) 
-#ADD_LIBRARY(autofree SHARED ./autofree.c) 
-#ADD_LIBRARY(db SHARED ./db.c) 
-#ADD_LIBRARY(linenoise SHARED ./deps/linenoise/linenoise.c)
-#ADD_LIBRARY(sc SHARED ./deps/sc/sc_log.c)
 
+IF(CMAKE_BUILD_TYPE STREQUAL "Release")
+MESSAGE("building release binary")
+ELSE()
+MESSAGE("building debug binary")
+SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0 -g -Wall -Wextra -fsanitize=address")
+SET(BUILD_SHARED_LIBS ON)
+ENDIF()
+
+IF(DEFINED BUILD_SHARED_LIBS)
+MESSAGE("building shared libraries")
+SET(buildopts "")
+ADD_LIBRARY(util OBJECT ./util.c) 
+ADD_LIBRARY(string OBJECT ./str.c) 
+ADD_LIBRARY(sioclient OBJECT ./sio-client.c) 
+ADD_LIBRARY(db OBJECT ./db.c) 
+
+ADD_LIBRARY(linenoise OBJECT ./deps/linenoise/linenoise.c)
+ADD_LIBRARY(sc OBJECT ./deps/sc/sc_log.c)
+
+#SET(libraries util string sioclient db linenoise sc)
+#SET(deps linenoise sc)
+add_library(libraries SHARED $<TARGET_OBJECTS:util>
+						   $<TARGET_OBJECTS:string>
+						   $<TARGET_OBJECTS:sioclient>
+						   $<TARGET_OBJECTS:db>)
+add_library(deps SHARED  $<TARGET_OBJECTS:linenoise> $<TARGET_OBJECTS:sc>) 
+ELSE()
+MESSAGE("building static libraries")
+SET(buildopts "-static")
 ADD_LIBRARY(libraries STATIC ./util.c ./str.c ./sio-client.c ./db.c)
 ADD_LIBRARY(deps STATIC ./deps/linenoise/linenoise.c ./deps/sc/sc_log.c)
+ENDIF()
 
-
+SET(downloaded-deps json-c uuid gc)
 ADD_EXECUTABLE(chatnet client.c)
-
-
-TARGET_LINK_LIBRARIES(chatnet libraries deps json-c uuid gc)
-#TARGET_LINK_LIBRARIES(chatnet sioclient util autofree string  db json-c uuid linenoise sc)
-
-
-#TARGET_COMPILE_OPTIONS(chatnet PRIVATE -Wall -fPIC -pie -Wextra -g -O0 -fsanitize=thread )
-#TARGET_LINK_OPTIONS(chatnet PRIVATE -Wall -fPIC -pie -Wextra -g  -O0 -fsanitize=thread )
+TARGET_LINK_LIBRARIES(chatnet ${buildopts} libraries deps ${downloaded-deps})
