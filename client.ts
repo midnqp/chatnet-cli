@@ -3,8 +3,8 @@ import { inspect } from 'node:util'
 import path from 'node:path'
 import socketioclient from 'socket.io-client'
 import fs from 'fs-extra'
-const serverurl = 'https://chatnet-server.midnqp.repl.co'
-const io = socketioclient(serverurl)
+import childprocess from 'node:child_process'
+import recorder from 'node-record-lpcm16'
 
 const IPCTIMEOUT = 15000 as const
 const IPCDIR = getIpcDir()
@@ -13,54 +13,85 @@ const IPCLOCKF = path.join(IPCDIR, 'LOCK')
 const IPCUNLOCKF = path.join(IPCDIR, 'UNLOCK')
 const IPCLOGF = path.join(IPCDIR, 'log-latest.txt')
 const CLIENTUPF = path.join(IPCDIR, 'CLIENTUP')
+const SERVERURL = 'https://chatnet-server.midnqp.repl.co'
 
+const io = socketioclient(SERVERURL)
+const speaker = childprocess.spawn('sox', ['-t', 'wav', '-', '-d'])
+const microphone = recorder.record({ sampleRate: 8000, compress: true })
+
+microphone.pause()
+io.connect()
 main()
 
 async function main() {
-    if (!IPCDIR) return console.error('database not found')
-
+    assert(!IPCDIR, 'database not found')
     logDebug('hi')
-    setClientUp()
+    setClientAvailable()
 
     try {
         logDebug("listening for 'broadcast'")
         io.on('broadcast', (msg: SioMessage) => {
-            const handleNewMsg = async (bucket: string) => {
-                const arr: IpcMsgBucket = JSON.parse(bucket)
-                if (!Array.isArray(arr)) return
-                arr.push(msg)
-                const arrstr = JSON.stringify(arr)
-                await ipcExec(() => ipcPut('recvmsgbucket', arrstr))
-            }
-            ipcExec(() => ipcGet('recvmsgbucket')).then(handleNewMsg)
+            const promise = ipcExec(() => ipcGet('recvmsgbucket'))
+            promise.then(bucket => addToRecvQueue(bucket, msg))
         })
 
         logDebug('send-msg-loop starting')
         while (await toLoop()) {
             const bucket = await ipcExec(() => ipcGet('sendmsgbucket'))
-            let arr: IpcMsgBucket = JSON.parse(bucket)
+            await emitFromSendQueue(bucket)
 
-            if (arr.length) {
-                await ipcExec(() => ipcPut('sendmsgbucket', '[]'))
-                logDebug('found sendmsgbucket', arr)
-                for (let item of arr) {
-                    if (item.type == 'message') {
-                        logDebug('sending message', item)
-                        io.emit('message', item)
-                    }
-                }
-            }
+            await emitFromMicrophone()
 
             await sleep(1000)
         }
-        logDebug('loop ended, closing socket.io')
-        io.close()
     } catch (err) {
         logDebug('something went very wrong', err)
     }
-    setClientDown()
+
+    logDebug('closing socket.io')
+    io.close()
+    setClientUnavailable()
     logDebug('bye')
 } // ends main()
+
+async function emitFromMicrophone() {
+    const micstate = await ipcExec(() => ipcGet('micstate'))
+    if (micstate == 'on') {
+        microphone.stream().on('data', buf => io.emit('voice:in', buf))
+        io.on('voice:out', buf => speaker.stdin.write(buf))
+    }
+    if (micstate == 'mute') microphone.pause()
+    if (micstate == 'off') {
+        microphone.stop()
+        io.off('voice:out')
+    }
+}
+
+async function addToRecvQueue(bucket: string, msg: SioMessage) {
+    const arr: IpcMsgBucket = JSON.parse(bucket)
+    if (!Array.isArray(arr)) return
+
+    arr.push(msg)
+    const arrstr = JSON.stringify(arr)
+    await ipcExec(() => ipcPut('recvmsgbucket', arrstr))
+}
+
+async function emitFromSendQueue(bucket: string) {
+    let arr: IpcMsgBucket = JSON.parse(bucket)
+
+    if (arr.length) {
+        await ipcExec(() => ipcPut('sendmsgbucket', '[]'))
+        logDebug('found sendmsgbucket', arr)
+        for (let item of arr) {
+            if (item.type == 'message') {
+                logDebug('sending message', item)
+                io.emit('message', item)
+            }
+        }
+    }
+}
+
+/************** code below are mostly utils **************/
 
 async function ipcGet(key: string) {
     while (true) {
@@ -88,7 +119,7 @@ async function ipcPut(key: string, val: string) {
             await fs.writeJson(IPCPATH, json)
             return
         } catch (e) {
-            logDebug('ipcPut: something failed: retry',e)
+            logDebug('ipcPut: something failed: retry', e)
             await sleep(50)
         }
     }
@@ -157,11 +188,11 @@ async function unsetIpcLock() {
     }
 }
 
-function setClientUp() {
+function setClientAvailable() {
     fs.ensureFileSync(CLIENTUPF)
 }
 
-function setClientDown() {
+function setClientUnavailable() {
     fs.unlinkSync(CLIENTUPF)
 }
 
@@ -188,7 +219,7 @@ async function ipcExec(fn: () => Promise<any>) {
     }
     if (fnExecuted == false) {
         logDebug('database not reachable')
-        setClientDown()
+        setClientUnavailable()
         process.exit()
     }
     return result
