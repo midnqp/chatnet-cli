@@ -16,25 +16,26 @@ ENDIF()
 IF(DEFINED BUILD_SHARED_LIBS)
 MESSAGE("building shared libraries")
 SET(buildopts "")
+SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
 ADD_LIBRARY(util OBJECT ./util.c) 
 ADD_LIBRARY(string OBJECT ./str.c) 
 ADD_LIBRARY(sioclient OBJECT ./sio-client.c) 
-ADD_LIBRARY(db OBJECT ./db.c) 
+ADD_LIBRARY(db OBJECT ./ipc.c) 
 
 ADD_LIBRARY(linenoise OBJECT ./deps/linenoise/linenoise.c)
 ADD_LIBRARY(sc OBJECT ./deps/sc/sc_log.c)
 
 #SET(libraries util string sioclient db linenoise sc)
 #SET(deps linenoise sc)
-add_library(libraries SHARED $<TARGET_OBJECTS:util>
+ADD_LIBRARY(libraries SHARED $<TARGET_OBJECTS:util>
 						   $<TARGET_OBJECTS:string>
 						   $<TARGET_OBJECTS:sioclient>
 						   $<TARGET_OBJECTS:db>)
-add_library(deps SHARED  $<TARGET_OBJECTS:linenoise> $<TARGET_OBJECTS:sc>) 
+ADD_LIBRARY(deps SHARED  $<TARGET_OBJECTS:linenoise> $<TARGET_OBJECTS:sc>) 
 ELSE()
 MESSAGE("building static libraries")
 SET(buildopts "-static")
-ADD_LIBRARY(libraries STATIC ./util.c ./str.c ./sio-client.c ./db.c)
+ADD_LIBRARY(libraries STATIC ./util.c ./str.c ./sio-client.c ./ipc.c)
 ADD_LIBRARY(deps STATIC ./deps/linenoise/linenoise.c ./deps/sc/sc_log.c)
 ENDIF()
 
