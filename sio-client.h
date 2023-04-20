@@ -10,7 +10,7 @@
 #include <unistd.h>
 
 #include "autofree.h"
-#include "db.h"
+#include "ipc.h"
 #include "str.h"
 #include "util.h"
 

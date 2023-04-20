@@ -4,10 +4,11 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <uuid/uuid.h>
+#include <execinfo.h>
 
 #include "./deps/sc/sc_log.h"
 #include "str.h"
-#include "db.h"
+#include "ipc.h"
 #include "util.h"
 
 void log_cleanup() {
@@ -76,10 +77,9 @@ void createnewdb() {
 	if (entexists(dbpath))
 		unlink(dbpath);
 
-	FILE *dbfile = fopen(dbpath, "a+");
-	fputs("{}\n", dbfile);
-	fclose(dbfile);
-	fclose(fopen(unlockfile, "a+"));
+	file_write(dbpath, "{}");
+	file_write(unlockfile, "");
+	logdebug("dbpath %s contains: %s\n", dbpath, file_read(dbpath));
 }
 
 char *genusername() {
@@ -93,24 +93,24 @@ char *genusername() {
 }
 
 void initnewdb() {
-	leveldbput("userstate", "true");
-	leveldbput("sendmsgbucket", "[]");
-	leveldbput("recvmsgbucket", "[]");
-	leveldbput("username", genusername());
+	ipc_put("userstate", "true");
+	ipc_put("sendmsgbucket", "[]");
+	ipc_put("recvmsgbucket", "[]");
+	ipc_put("username", genusername());
 }
-
-void initnewdb_raw() {}
 
 char *file_read(const char *filename) {
 	FILE *file = fopen(filename, "rb");
-	if (!file)
+	if (file == NULL) {
+		logdebug("reading file '%s' failed\n",filename);
 		return NULL;
+	}
 
 	fseek(file, 0L, SEEK_END);
 	size_t filesize = ftell(file);
 	rewind(file);
 	char *result = strinit(filesize + 1);
-	fread(result, sizeof(char), filesize, file);
+	(void)fread(result, sizeof(char), filesize, file);
 	result[filesize] = '\0';
 	fclose(file);
 	return result;
@@ -118,13 +118,34 @@ char *file_read(const char *filename) {
 
 void file_write(const char *filename, const char *contents) {
 	FILE *file = fopen(filename, "w");
-	fputs(contents, file);
+	/*fputs(contents, file);*/
+	fprintf(file, "%s", contents);
+	fflush(file);
+	fsync(fileno(file));
 	fclose(file);
 }
 
+char* print_stacktrace() {
+	void* array[10];
+	char** strings;
+	int size;
+	char* result = strinit(1);
+
+	size=backtrace(array, 10);
+	strings = backtrace_symbols(array, size);
+	if (strings != NULL) 
+		for (int i=0; i < size; i++)  {
+			strappend(&result, strings[i]);
+			strappend(&result, "\n");
+		}
+	free(strings);
+	
+	return result;
+}
+
 void json_parse_check(json_object *o, const char *str) {
-	if (o == NULL) {
-		sc_log_error("json parse failed for string:\n%s", str);
-		exit(4);
-	}
+	if (o != NULL) return;
+	sc_log_error("json parse failed for string:\n%s", str);
+	logdebug("stack trace:\n%s\n",print_stacktrace());
+	exit(4);
 }

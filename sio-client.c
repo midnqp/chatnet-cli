@@ -1,5 +1,5 @@
 #include "sio-client.h"
-#include "db.h"
+#include "ipc.h"
 
 char *sioc_name = "chatnet-sio-client";
 
@@ -19,16 +19,6 @@ status init(char *execname) {
 		return err;
 	}
 
-	// check if "prebuilds" dir found, as needed by executable
-	char *prebuildspath = strinit(1);
-	strappend(&prebuildspath, dir);
-	strappend(&prebuildspath, "/prebuilds");
-	if (!entexists(prebuildspath)) {
-		err.code = 1;
-		sprintf(err.msg, "folder \"prebuilds\" not found in the same folder.");
-		return err;
-	}
-
 	// launch executable
 	char *cmd = strinit(1);
 	strappend(&cmd, sioclientpath);
@@ -41,21 +31,6 @@ status init(char *execname) {
 			sprintf(err.msg, "launch of \"%s\" failed.", sioc_name);
 			return err;
 		}
-	}
-
-	// executable creates the database path
-	int sleepc = 0;
-	while (1) {
-		if (sleepc == 10) {
-			err.code = 2;
-			sprintf(err.msg, "database not initiated.");
-			return err;
-		}
-
-		if (entexists(getdbpath()))
-			break;
-		sleepc++;
-		sleep(1);
 	}
 
 	err.code = 0;
@@ -71,4 +46,4 @@ void sioclientinit(char *execname) {
 }
 
 
-void sioclientcleanup() {leveldbput("userstate", "false");}
+void sioclientcleanup() {ipc_put("userstate", "false");}

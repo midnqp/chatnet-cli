@@ -1,18 +1,10 @@
 #ifndef CHATNET_DB_H_
 #define CHATNET_DB_H_
 
-void leveldbinit();
-
-/* takes ERRPTR and adds error in it, instead of fatal exit */
-char *leveldbget_e(const char *key, char **errptr);
-
 /* get value by key, fatal exit on error */
-char *leveldbget(const char *key);
+char *ipc_get(const char *key);
 
 /* put value by key, fatal exit on error */
-void leveldbput(const char *key, const char *val);
-
-/* takes ERRPTR and adds error in it, instead of fatal exit */
-void leveldbput_e(const char *key, const char *val, char **errptr);
+void ipc_put(const char *key, const char *val);
 
 #endif // ends CHATNET_DB_H_

@@ -9,7 +9,7 @@
 #include <uuid/uuid.h>
 
 #include "autofree.h"
-#include "db.h"
+#include "ipc.h"
 #include "deps/linenoise/linenoise.h"
 #include "deps/sc/sc_log.h"
 #include "sio-client.h"
@@ -52,14 +52,14 @@ void sendbuckets_add(char* buffer, const char* username) {
 	logdebug("source object: %s\n", json_object_to_json_string(json));
 
 	// read existing array, and add this at the end
-	char *bucket = leveldbget("sendmsgbucket"); // "[...]"
+	char *bucket = ipc_get("sendmsgbucket"); // "[...]"
 	logdebug("sendbuckets_add: leveldbget:%zu %s\n", strlen(bucket), bucket);
 	json_object *bucketarr = json_tokener_parse(bucket);
 	json_parse_check(bucketarr, bucket);
 	json_object_array_add(bucketarr, json);
 
 	const char *dbarr = json_object_to_json_string(bucketarr);
-	leveldbput("sendmsgbucket", dbarr);
+	ipc_put("sendmsgbucket", dbarr);
 	json_object_put(bucketarr);
 }
 
@@ -77,10 +77,10 @@ char *sendbucket_get() {
 
 char *recvbucket_get() {
 	char *result = strinit(1);
-	char *arr = leveldbget("recvmsgbucket");
+	char *arr = ipc_get("recvmsgbucket");
 	if (strlen(arr) < 3)
 		return "";
-	leveldbput("recvmsgbucket", "[]");
+	ipc_put("recvmsgbucket", "[]");
 	json_object *arrj = json_tokener_parse(arr);
 	json_parse_check(arrj, arr);
 	int len = json_object_array_length(arrj);
@@ -90,8 +90,6 @@ char *recvbucket_get() {
 		json_object *jusername = json_object_object_get(o, "username");
 		json_parse_check(jusername, arr);
 		const char *sender = json_object_get_string(jusername);
-		if (strcmp(sender, username) == 0)
-			continue;
 		json_object *jdata = json_object_object_get(o, "data");
 		json_parse_check(jdata, arr);
 		const char *message = json_object_get_string(jdata);
@@ -166,16 +164,16 @@ void *thread_msg_write() {
 		f_thwrite = 3;
 
 		if (strcmp(linenoise_buffer, "/exit") == 0) {
-			leveldbput("userstate", "false");
+			ipc_put("userstate", "false");
 			f_thprint = 1;
 			break;
 		} else if (strncmp(linenoise_buffer, "/name", 5) == 0) {
 			char *username = strinit(strlen(linenoise_buffer));
 			size_t len = strlen(linenoise_buffer) - 5;
-			// TODO check: must be all alphabets, and <= 16 char long
+			// TODO check: must be all alphabets, and <= 16 char long, and trimmed
 			strncpy(username, linenoise_buffer + 6, len);
 			username[len] = '\0';
-			leveldbput("username", username);
+			ipc_put("username", username);
 			linenoise_prompt = username;
 			linenoise_buffer[0] = '\0';
 		} else {
@@ -198,7 +196,7 @@ int main(int argc, char *argv[]) {
 
 	createnewdb();
 	initnewdb();
-	username = leveldbget("username");
+	username = ipc_get("username");
 
 	char *prompt = strinit(1);
 	strappend(&prompt, username);

@@ -7,12 +7,9 @@
 #include "autofree.h"
 #include "str.h"
 #include "util.h"
-#include "db.h"
+#include "ipc.h"
 
-int timeoutinit = 10 * 1000 * 1000; // 10 seconds
-
-/* idempotent db cleanup */
-void leveldbcleanup(json_object **jsondb) {
+void ipc_cleanup(json_object **jsondb) {
 	unsetdblock(); // this must work, otherwise error in algo.
 	if (*jsondb != NULL) {
 		json_object_put(*jsondb);
@@ -20,8 +17,7 @@ void leveldbcleanup(json_object **jsondb) {
 	}
 }
 
-/* idempotent db init */
-void leveldbinit(json_object **jsondb) {
+void ipc_init(json_object **jsondb) {
 	int timeoutc = 0;
 	char *dbpath = getdbpath();
 	char *lockfile = getdblockfile();
@@ -39,14 +35,15 @@ void leveldbinit(json_object **jsondb) {
 	}
 
 	char *dbcontents = file_read(dbpath);
+	logdebug("ipc_init contents: %s\n", dbcontents);
 	*jsondb = json_tokener_parse(dbcontents);
 	json_parse_check(*jsondb, dbcontents);
 	logdebug("parsed json: %s\n", json_object_to_json_string(*jsondb));
 }
 
-char *leveldbget(const char *key) {
+char *ipc_get(const char *key) {
 	json_object *jsondb;
-	leveldbinit(&jsondb);
+	ipc_init(&jsondb);
 	char *result = NULL;
 
 	json_object *value = json_object_object_get(jsondb, key);
@@ -55,17 +52,17 @@ char *leveldbget(const char *key) {
 		strappend(&result, json_object_get_string(value));
 	}
 
-	leveldbcleanup(&jsondb);
+	ipc_cleanup(&jsondb);
 	return result;
 }
 
-void leveldbput(const char *key, const char *val) {
+void ipc_put(const char *key, const char *val) {
 	json_object *jsondb;
-	leveldbinit(&jsondb);
+	ipc_init(&jsondb);
 
 	json_object_object_add(jsondb, key, json_object_new_string(val));
 	const char *contents = json_object_to_json_string(jsondb);
 	file_write(getdbpath(), contents);
 
-	leveldbcleanup(&jsondb);
+	ipc_cleanup(&jsondb);
 }
