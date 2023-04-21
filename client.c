@@ -1,3 +1,5 @@
+#include "deps/linenoise/linenoise.h"
+#include <gc.h>
 #include <gc/gc.h>
 #include <json-c/json.h>
 #include <pthread.h>
@@ -5,13 +7,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/select.h>
 #include <unistd.h>
 #include <uuid/uuid.h>
-#include <gc.h>
 
-#include "ipc.h"
 #include "deps/linenoise/linenoise.h"
 #include "deps/sc/sc_log.h"
+#include "ipc.h"
 #include "sio-client.h"
 #include "str.h"
 #include "util.h"
@@ -29,21 +31,19 @@ int f_thprint = 0;
 int f_thwrite = 0;
 pthread_t id_thwrite = 0;
 /* store sent messages */
-char *sendbucket[1024];
 int sendbucketc = 0;
-char linenoise_buffer[1024 * 1024] = "";
+/*char linenoise_buffer[1024 * 1024] = "";*/
 char *linenoise_prompt = ">";
 char *username = NULL;
 
 void *thread_msg_print();
 void *thread_msg_write();
 
-void sendbuckets_add(char* buffer, const char* username) {
+void sendbuckets_add(char *buffer, const char *username) {
 	char *_buffer = strdup(buffer);
 	char *strbuffer = strinit(1);
 	strappend(&strbuffer, _buffer);
-	sendbucket[sendbucketc++] = _buffer; // freed by sendbucket_get() or by OS
-	linenoise_buffer[0] = '\0';
+	/*linenoise_buffer[0] = '\0';*/
 
 	json_object *json = json_object_new_object();
 	json_object_object_add(json, "username", json_object_new_string(username));
@@ -61,18 +61,6 @@ void sendbuckets_add(char* buffer, const char* username) {
 	const char *dbarr = json_object_to_json_string(bucketarr);
 	ipc_put("sendmsgbucket", dbarr);
 	json_object_put(bucketarr);
-}
-
-char *sendbucket_get() {
-	char *result = strinit(1);
-	for (int i = 0; i < sendbucketc; i++) {
-		strappend(&result, "You: ");
-		strappend(&result, sendbucket[i]);
-		strappend(&result, "\r\n");
-		GC_free(sendbucket[i]);
-	}
-	sendbucketc = 0;
-	return result;
 }
 
 char *recvbucket_get() {
@@ -102,94 +90,6 @@ char *recvbucket_get() {
 	return result;
 }
 
-void *thread_msg_print() {
-	sc_log_set_thread_name("thread-msg-print");
-	logdebug("started thread-msg-print\n");
-	char *result = strinit(1);
-
-	while (1) {
-		if (f_thprint == 1)
-			break;
-
-		usleep(500 * 1000); // 500ms
-
-		char *recvmsgfmt = recvbucket_get();
-		bool doflush = false;
-
-		if (strcmp(recvmsgfmt, "") != 0) {
-			strappend(&result, recvmsgfmt);
-			doflush = true;
-		}
-
-		if (!doflush)
-			continue;
-
-		if (id_thwrite && f_thwrite == 2) {
-			pthread_cancel(id_thwrite);
-			id_thwrite = 0;
-			f_thwrite = 0;
-		}
-
-		printf("\33[2K\r");
-		printf("%s", result);
-		fflush(stdout);
-		strcpy(result, "");
-
-		if (id_thwrite == 0) {
-			// only create this thread, if you had cancelled earlier
-			pthread_t T3;
-			pthread_create(&T3, NULL, &thread_msg_write, NULL);
-		}
-	}
-
-	GC_free(result);
-	logdebug("ended thread-msg-print\n");
-	return NULL;
-}
-
-void write_msg_cleanup() {
-	disableRawMode(STDIN_FILENO);
-	id_thwrite = 0;
-}
-
-void *thread_msg_write() {
-	id_thwrite = pthread_self();
-	sc_log_set_thread_name("thread-msg-write");
-	logdebug("started thread-msg-write\n");
-	pthread_cleanup_push(write_msg_cleanup, NULL);
-
-	while (1) {
-		f_thwrite = 2;
-		linenoiseRaw(linenoise_buffer, 1024 * 1024, linenoise_prompt);
-		f_thwrite = 3;
-
-		if (strcmp(linenoise_buffer, "/exit") == 0) {
-			ipc_put("userstate", "false");
-			f_thprint = 1;
-			break;
-		} else if (strncmp(linenoise_buffer, "/name", 5) == 0) {
-			char *uname = strinit(strlen(linenoise_buffer));
-			size_t len = strlen(linenoise_buffer) - 5;
-			// TODO check: must be all alphabets, and <= 16 char long, and trimmed
-			strncpy(uname, linenoise_buffer + 6, len);
-			uname[len] = '\0';
-			ipc_put("username", uname);
-			strcpy(username, uname);
-			strappend(&uname, ": ");
-			linenoise_prompt = uname;
-			linenoise_buffer[0] = '\0';
-		} else {
-			f_thwrite = 4;
-			sendbuckets_add(linenoise_buffer, username);
-			f_thwrite = 3;
-		}
-	}
-
-	pthread_cleanup_pop(1);
-	logdebug("ended thread-msg-write\n");
-	return NULL;
-}
-
 int main(int argc, char *argv[]) {
 	(void)argc;
 	sc_log_set_thread_name("thread-main");
@@ -208,10 +108,65 @@ int main(int argc, char *argv[]) {
 	sioclientinit(argv[0]);
 	atexit(sioclientcleanup);
 
-	pthread_t T2, T3;
-	pthread_create(&T2, NULL, &thread_msg_print, NULL);
-	pthread_create(&T3, NULL, &thread_msg_write, NULL);
-	pthread_join(T2, NULL);
-	pthread_join(T3, NULL);
-	logdebug("bye!\n");
+	while (1) {
+		char *line;
+		/* Asynchronous mode using the multiplexing API: wait for
+		 * data on stdin, and simulate async data coming from some source
+		 * using the select(2) timeout. */
+		struct linenoiseState ls;
+		char buf[1024];
+		linenoiseEditStart(&ls, -1, -1, buf, sizeof(buf), linenoise_prompt);
+		while (1) {
+			fd_set readfds;
+			struct timeval tv;
+			int retval;
+
+			FD_ZERO(&readfds);
+			FD_SET(ls.ifd, &readfds);
+			tv.tv_usec = 1000 * 500; // 500ms
+
+			retval = select(ls.ifd + 1, &readfds, NULL, NULL, &tv);
+			if (retval == -1) {
+				perror("select()");
+				exit(1);
+			} else if (retval) {
+				line = linenoiseEditFeed(&ls);
+				if (line != linenoiseEditMore)
+					break;
+			} else {
+				// Timeout occurred
+				static int counter = 0;
+				linenoiseHide(&ls);
+				printf("%s", recvbucket_get());
+				linenoiseShow(&ls);
+			}
+		}
+
+		linenoiseEditStop(&ls);
+		if (line == NULL)
+			exit(0); /* Ctrl+D/C. */
+
+		char *linenoise_buffer = buf;
+		if (strcmp(linenoise_buffer, "/exit") == 0) {
+			ipc_put("userstate", "false");
+			f_thprint = 1;
+			break;
+		} else if (strncmp(linenoise_buffer, "/name", 5) == 0) {
+			char *uname = strinit(16 + 1);
+			int j = 0;
+			for (int i = 6; (i < 16 + 6 || linenoise_buffer[i] != '\0'); i++)
+				uname[j++] = linenoise_buffer[i];
+
+			uname[j] = '\0';
+			ipc_put("username", uname);
+			username = uname;
+			strcpy(linenoise_prompt, "");
+			strappend(&linenoise_prompt, uname);
+			strappend(&linenoise_prompt, ": ");
+		} else {
+			f_thwrite = 4;
+			sendbuckets_add(linenoise_buffer, username);
+			f_thwrite = 3;
+		}
+	}
 }
