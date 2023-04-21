@@ -168,13 +168,15 @@ void *thread_msg_write() {
 			f_thprint = 1;
 			break;
 		} else if (strncmp(linenoise_buffer, "/name", 5) == 0) {
-			char *username = strinit(strlen(linenoise_buffer));
+			char *uname = strinit(strlen(linenoise_buffer));
 			size_t len = strlen(linenoise_buffer) - 5;
 			// TODO check: must be all alphabets, and <= 16 char long, and trimmed
-			strncpy(username, linenoise_buffer + 6, len);
-			username[len] = '\0';
-			ipc_put("username", username);
-			linenoise_prompt = username;
+			strncpy(uname, linenoise_buffer + 6, len);
+			uname[len] = '\0';
+			ipc_put("username", uname);
+			strcpy(username, uname);
+			strappend(&uname, ": ");
+			linenoise_prompt = uname;
 			linenoise_buffer[0] = '\0';
 		} else {
 			f_thwrite = 4;
