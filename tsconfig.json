@@ -1,18 +1,20 @@
 {
-  "typeAcquisition": { "enable": true },
-  "compilerOptions": {
-    "target": "ESNext",
-    "moduleResolution": "node",
-    "module": "ESNext",
+    "compilerOptions": {
+        "types": ["node"],
+        "lib": ["ESNext"],
+        "target": "ESNext",
+        "module": "ESNext",
+        "moduleResolution": "nodenext",
+        "outDir": "dist",
+        "incremental": true,
 
-    "strict": true,
-    "allowJs": true,
-
-    "allowSyntheticDefaultImports": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-
-    "outDir": "dist"
-  },
-  "include": ["./client.ts"]
+        "strict": true,
+        "allowJs": true,
+        "allowSyntheticDefaultImports": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "noImplicitAny": false
+    },
+    "include": ["./client.ts"],
+    "exclude": ["node_modules"]
 }
