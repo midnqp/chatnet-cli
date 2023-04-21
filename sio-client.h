@@ -9,7 +9,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "autofree.h"
 #include "ipc.h"
 #include "str.h"
 #include "util.h"

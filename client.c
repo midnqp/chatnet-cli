@@ -7,8 +7,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <uuid/uuid.h>
+#include <gc.h>
 
-#include "autofree.h"
 #include "ipc.h"
 #include "deps/linenoise/linenoise.h"
 #include "deps/sc/sc_log.h"
@@ -69,7 +69,7 @@ char *sendbucket_get() {
 		strappend(&result, "You: ");
 		strappend(&result, sendbucket[i]);
 		strappend(&result, "\r\n");
-		autofree_free(sendbucket[i]);
+		GC_free(sendbucket[i]);
 	}
 	sendbucketc = 0;
 	return result;
@@ -142,7 +142,7 @@ void *thread_msg_print() {
 		}
 	}
 
-	autofree_free(result);
+	GC_free(result);
 	logdebug("ended thread-msg-print\n");
 	return NULL;
 }

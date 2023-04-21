@@ -1,11 +1,11 @@
 #include <stdlib.h>
 #include <string.h>
+#include <gc.h>
 
-#include "autofree.h"
 #include "str.h"
 
 char *strinit(size_t len) {
-	char *s = alloc(len);
+	char *s = GC_malloc(len);
 	strcpy(s, ""); // adds \0
 	return s;
 }
@@ -21,7 +21,7 @@ void strrealloc(char **dest, const char *src) {
 		else if (*dest[ptr_len - 1] != '\0')
 			total++;
 
-		*dest = autofree_realloc(*dest, total);
+		*dest = GC_realloc(*dest, total);
 	}
 }
 

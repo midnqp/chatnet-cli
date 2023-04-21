@@ -4,7 +4,6 @@
 #include <string.h>
 #include <json-c/json.h>
 
-#include "autofree.h"
 #include "str.h"
 #include "util.h"
 #include "ipc.h"
