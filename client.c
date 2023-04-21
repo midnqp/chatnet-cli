@@ -135,7 +135,6 @@ int main(int argc, char *argv[]) {
 					break;
 			} else {
 				// Timeout occurred
-				static int counter = 0;
 				linenoiseHide(&ls);
 				printf("%s", recvbucket_get());
 				linenoiseShow(&ls);

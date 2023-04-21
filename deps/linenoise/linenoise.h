@@ -47,9 +47,6 @@ extern "C" {
 
 extern char *linenoiseEditMore;
 
-static int enableRawMode(int fd); // midnqp
-static void disableRawMode(int fd); // midnqp
-
 /* The linenoiseState structure represents the state during line editing.
  * We pass this state to functions implementing specific editing
  * functionalities. */
