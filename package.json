@@ -3,7 +3,7 @@
 	"version": "0.0.1",
 	"type": "module",
 	"scripts": {
-		"build": "tsc -p tsconfig.json && tsc-alias -p tsconfig.json",
+		"build": "tsc -p tsconfig.json",
 		"build:bin": "npm run build && npm run esbuild:cjs && npm run pkg",
 		"build:bin:all": "npm run build && npm run esbuild:cjs && npm run pkg:all",
 		"pkg:all": "npx pkg --no-bytecode --public --options no-warnings -t node18-linux-x64,node18-macos-x64,node18-win-x64 ./dist/bundle.cjs -o ./dist/bin",
