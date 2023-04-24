@@ -21,11 +21,17 @@ void log_cleanup() {
 /* check if file or folder exists */
 bool entexists(char *filename) { return access(filename, F_OK) != -1; }
 
-char *getdbdir() {
-	char *result = strinit(1);
+char* getconfigdir() {
+	char* result = strinit(1);
 	strappend(&result, getenv("HOME"));
-	strappend(&result, "/.config/chatnet-client");
+	strappend(&result, "/.config");
 	return result;
+}
+
+char *getdbdir() {
+	char *dir = getconfigdir();
+	strappend(&dir, "/chatnet-client");
+	return dir;
 }
 
 char *getdbpath() {
@@ -67,7 +73,9 @@ void createnewdb() {
 	char *dbdir = getdbdir();
 	char *unlockfile = getdbunlockfile();
 	char *lockfile = getdblockfile();
+	char* configdir = getconfigdir();
 
+	if (!entexists(configdir)) mkdir(configdir, 0700);
 	if (!entexists(dbdir))
 		mkdir(dbdir, 0700);
 	if (entexists(lockfile))
@@ -118,10 +126,8 @@ char *file_read(const char *filename) {
 
 void file_write(const char *filename, const char *contents) {
 	FILE *file = fopen(filename, "w");
-	/*fputs(contents, file);*/
 	fprintf(file, "%s", contents);
 	fflush(file);
-	fsync(fileno(file));
 	fclose(file);
 }
 
