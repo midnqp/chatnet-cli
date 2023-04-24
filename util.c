@@ -28,66 +28,66 @@ char* getconfigdir() {
 	return result;
 }
 
-char *getdbdir() {
+char *getipcdir() {
 	char *dir = getconfigdir();
 	strappend(&dir, "/chatnet-client");
 	return dir;
 }
 
-char *getdbpath() {
-	char *dir = getdbdir();
+char *getipcpath() {
+	char *dir = getipcdir();
 	strappend(&dir, "/ipc.json");
 	return dir;
 }
 
-char *getdblockfile() {
-	char *dir = getdbdir();
+char *getipclockfile() {
+	char *dir = getipcdir();
 	strappend(&dir, "/LOCK");
 	return dir;
 }
 
-char *getdbunlockfile() {
-	char *dir = getdbdir();
+char *getipcunlockfile() {
+	char *dir = getipcdir();
 	strappend(&dir, "/UNLOCK");
 	return dir;
 }
 
 char *getloglatestfile() {
-	char *dir = getdbdir();
+	char *dir = getipcdir();
 	strappend(&dir, "/log-latest.txt");
 	return dir;
 }
 
 char *getlogprevfile() {
-	char *dir = getdbdir();
+	char *dir = getipcdir();
 	strappend(&dir, "/log.0.txt");
 	return dir;
 }
 
-void setdblock() { rename(getdbunlockfile(), getdblockfile()); }
+void setipclock() { rename(getipcunlockfile(), getipclockfile()); }
 
-void unsetdblock() { rename(getdblockfile(), getdbunlockfile()); }
+void unsetipclock() { rename(getipclockfile(), getipcunlockfile()); }
 
-void createnewdb() {
-	char *dbpath = getdbpath();
-	char *dbdir = getdbdir();
-	char *unlockfile = getdbunlockfile();
-	char *lockfile = getdblockfile();
+void createnewipc() {
+	char *ipcpath = getipcpath();
+	char *ipcdir = getipcdir();
+	char *unlockfile = getipcunlockfile();
+	char *lockfile = getipclockfile();
 	char* configdir = getconfigdir();
 
 	if (!entexists(configdir)) mkdir(configdir, 0700);
-	if (!entexists(dbdir))
-		mkdir(dbdir, 0700);
+	if (!entexists(ipcdir))
+		mkdir(ipcdir, 0700);
 	if (entexists(lockfile))
 		unlink(lockfile);
 	if (entexists(unlockfile))
 		unlink(unlockfile);
-	if (entexists(dbpath))
-		unlink(dbpath);
+	if (entexists(ipcpath))
+		unlink(ipcpath);
 
-	file_write(dbpath, "{}");
+	file_write(ipcpath, "{}");
 	file_write(unlockfile, "");
-	logdebug("dbpath %s contains: %s\n", dbpath, file_read(dbpath));
+	logdebug("ipc path %s contains: %s\n", ipcpath, file_read(ipcpath));
 }
 
 char *genusername() {
@@ -100,7 +100,7 @@ char *genusername() {
 	return username;
 }
 
-void initnewdb() {
+void initnewipc() {
 	ipc_put("userstate", "true");
 	ipc_put("sendmsgbucket", "[]");
 	ipc_put("recvmsgbucket", "[]");

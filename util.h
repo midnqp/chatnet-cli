@@ -41,25 +41,25 @@ bool entexists(char *filename);
 
 char* getconfigdir();
 
-char *getdbdir();
+char *getipcdir();
 
-char *getdbpath();
+char *getipcpath();
 
-char *getdblockfile();
+char *getipclockfile();
 
-char *getdbunlockfile();
+char *getipcunlockfile();
 
 char *getlogprevfile();
 
 char *getloglatestfile();
 
-void unsetdblock();
+void unsetipclock();
 
-void setdblock();
+void setipclock();
 
-void createnewdb();
+void createnewipc();
 
-void initnewdb();
+void initnewipc();
 
 char *file_read(const char *filename);
 

@@ -79,8 +79,8 @@ int main(int argc, char *argv[]) {
 	logdebug("hi\n");
 	GC_INIT();
 
-	createnewdb();
-	initnewdb();
+	createnewipc();
+	initnewipc();
 	username = ipc_get("username");
 
 	char *prompt = strinit(1);
