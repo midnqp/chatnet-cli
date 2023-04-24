@@ -18,31 +18,14 @@
 #include "str.h"
 #include "util.h"
 
-/* 0 = null
- * 1 = please exit whenever you can asap
- */
-int f_thprint = 0;
-/* 0 = null
- * 1 = please exit whenever you can asap
- * 2 = taking input
- * 3 = not taking input
- * 4 = writing to db
- */
-int f_thwrite = 0;
-pthread_t id_thwrite = 0;
-/* store sent messages */
-int sendbucketc = 0;
-/*char linenoise_buffer[1024 * 1024] = "";*/
-char *linenoise_prompt = ">";
+char *linenoise_prompt = NULL;
 char *username = NULL;
-
-void *thread_msg_print();
-void *thread_msg_write();
 
 void sendbuckets_add(char *buffer, const char *username) {
 	char *_buffer = strdup(buffer);
 	char *strbuffer = strinit(1);
 	strappend(&strbuffer, _buffer);
+	free(_buffer);
 	/*linenoise_buffer[0] = '\0';*/
 
 	json_object *json = json_object_new_object();
@@ -110,9 +93,6 @@ int main(int argc, char *argv[]) {
 
 	while (1) {
 		char *line;
-		/* Asynchronous mode using the multiplexing API: wait for
-		 * data on stdin, and simulate async data coming from some source
-		 * using the select(2) timeout. */
 		struct linenoiseState ls;
 		char buf[1024];
 		linenoiseEditStart(&ls, -1, -1, buf, sizeof(buf), linenoise_prompt);
@@ -142,14 +122,13 @@ int main(int argc, char *argv[]) {
 		}
 
 		linenoiseEditStop(&ls);
-		if (line == NULL)
-			exit(0); /* Ctrl+D/C. */
 
+		bool _break = false;
 		char *linenoise_buffer = buf;
 		if (strcmp(linenoise_buffer, "/exit") == 0) {
 			ipc_put("userstate", "false");
-			f_thprint = 1;
-			break;
+			_break = true;
+			// break; // because `char* line` needs to be freed
 		} else if (strncmp(linenoise_buffer, "/name", 5) == 0) {
 			char *uname = strinit(16 + 1);
 			int j = 0;
@@ -162,10 +141,13 @@ int main(int argc, char *argv[]) {
 			strcpy(linenoise_prompt, "");
 			strappend(&linenoise_prompt, uname);
 			strappend(&linenoise_prompt, ": ");
-		} else {
-			f_thwrite = 4;
+		} else
 			sendbuckets_add(linenoise_buffer, username);
-			f_thwrite = 3;
-		}
+
+		if (line != NULL)
+			linenoiseFree(line);
+
+		if (_break)
+			break;
 	}
 }
