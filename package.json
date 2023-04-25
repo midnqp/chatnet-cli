@@ -7,14 +7,17 @@
 		"build:bin": "npm run build && npm run esbuild:cjs && npm run pkg",
 		"build:bin:all": "npm run build && npm run esbuild:cjs && npm run pkg:all",
 		"pkg:all": "npx pkg --no-bytecode --public --options no-warnings -t node18-linux-x64,node18-macos-x64,node18-win-x64 ./dist/bundle.cjs -o ./dist/bin",
-		"pkg": "npx pkg --no-bytecode --public --options no-warnings -t node18 ./dist/bundle.cjs -o ./dist/bin",
+		"pkg": "npx pkg --no-bytecode --public --options no-warnings -t node18 ./dist/bundle.cjs -o ./dist/chatnet-sio-client",
 		"esbuild:cjs": "npx esbuild dist/client.js --outfile=dist/bundle.cjs --format=cjs --platform=node"
 	},
 	"dependencies": {
 		"fs-extra": "^11.1.1",
+		"lodash": "^4.17.21",
 		"socket.io-client": "^4.6.1"
 	},
 	"devDependencies": {
+		"@types/fs-extra": "^11.0.1",
+		"@types/lodash": "^4.14.194",
 		"@types/node": "^18.15.13"
 	}
 }
