@@ -1,14 +1,14 @@
+#include <execinfo.h>
 #include <json-c/json.h>
 #include <json-c/json_types.h>
 #include <stdbool.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <uuid/uuid.h>
-#include <execinfo.h>
 
 #include "./deps/sc/sc_log.h"
-#include "str.h"
 #include "ipc.h"
+#include "str.h"
 #include "util.h"
 
 void log_cleanup() {
@@ -21,8 +21,8 @@ void log_cleanup() {
 /* check if file or folder exists */
 bool entexists(char *filename) { return access(filename, F_OK) != -1; }
 
-char* getconfigdir() {
-	char* result = strinit(1);
+char *getconfigdir() {
+	char *result = strinit(1);
 	strappend(&result, getenv("HOME"));
 	strappend(&result, "/.config");
 	return result;
@@ -73,9 +73,10 @@ void createnewipc() {
 	char *ipcdir = getipcdir();
 	char *unlockfile = getipcunlockfile();
 	char *lockfile = getipclockfile();
-	char* configdir = getconfigdir();
+	char *configdir = getconfigdir();
 
-	if (!entexists(configdir)) mkdir(configdir, 0700);
+	if (!entexists(configdir))
+		mkdir(configdir, 0700);
 	if (!entexists(ipcdir))
 		mkdir(ipcdir, 0700);
 	if (entexists(lockfile))
@@ -101,16 +102,16 @@ char *genusername() {
 }
 
 void initnewipc() {
-	ipc_put("userstate", "true");
-	ipc_put("sendmsgbucket", "[]");
-	ipc_put("recvmsgbucket", "[]");
-	ipc_put("username", genusername());
+	ipc_put_boolean("userstate", true);
+	ipc_put_array("sendmsgbucket", json_object_new_array());
+	ipc_put_array("recvmsgbucket", json_object_new_array());
+	ipc_put_string("username", genusername());
 }
 
 char *file_read(const char *filename) {
 	FILE *file = fopen(filename, "rb");
 	if (file == NULL) {
-		logdebug("reading file '%s' failed\n",filename);
+		logdebug("reading file '%s' failed\n", filename);
 		return NULL;
 	}
 
@@ -131,27 +132,28 @@ void file_write(const char *filename, const char *contents) {
 	fclose(file);
 }
 
-char* print_stacktrace() {
-	void* array[10];
-	char** strings;
+char *print_stacktrace() {
+	void *array[10];
+	char **strings;
 	int size;
-	char* result = strinit(1);
+	char *result = strinit(1);
 
-	size=backtrace(array, 10);
+	size = backtrace(array, 10);
 	strings = backtrace_symbols(array, size);
-	if (strings != NULL) 
-		for (int i=0; i < size; i++)  {
+	if (strings != NULL)
+		for (int i = 0; i < size; i++) {
 			strappend(&result, strings[i]);
 			strappend(&result, "\n");
 		}
 	free(strings);
-	
+
 	return result;
 }
 
 void json_parse_check(json_object *o, const char *str) {
-	if (o != NULL) return;
+	if (o != NULL)
+		return;
 	sc_log_error("json parse failed for string:\n%s", str);
-	logdebug("stack trace:\n%s\n",print_stacktrace());
+	logdebug("stack trace:\n%s\n", print_stacktrace());
 	exit(4);
 }

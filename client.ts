@@ -3,6 +3,7 @@ import { inspect } from 'node:util'
 import path from 'node:path'
 import socketioClient from 'socket.io-client'
 import fs from 'fs-extra'
+import lodash from 'lodash'
 
 const IPCTIMEOUT = 15000 as const // 15 sec
 const IPCDIR = getIpcDir()
@@ -26,7 +27,7 @@ async function main() {
     logDebug('send-msg-loop starting')
     while (await toLoop()) {
         await emitFromSendQueue()
-        await sleep(1000)
+        await sleep(500)
     }
 
     logDebug('closing socket.io')
@@ -36,36 +37,38 @@ async function main() {
 }
 
 async function addToRecvQueue(msg: SioMessage) {
-    const bucket: string = await ipcExec(() => ipcGet('recvmsgbucket'))
-    const arr: IpcMsgBucket = JSON.parse(bucket)
+    const bucket = await ipcExec(() => ipcGet('recvmsgbucket'))
+    const arr = bucket
+    //const arr: IpcMsgBucket = JSON.parse(bucket)
     if (!Array.isArray(arr)) return
 
     arr.push(msg)
-    const arrstr = JSON.stringify(arr)
-    await ipcExec(() => ipcPut('recvmsgbucket', arrstr))
+    await ipcExec(() => ipcPut('recvmsgbucket', arr))
 }
 
 async function emitFromSendQueue() {
     const bucket = await ipcExec(() => ipcGet('sendmsgbucket'))
-    let arr: IpcMsgBucket = JSON.parse(bucket)
+    //let arr: IpcMsgBucket = JSON.parse(bucket)
+    const arr = bucket
 
     if (!arr.length) return
 
-    await ipcExec(() => ipcPut('sendmsgbucket', '[]'))
+    const arrNew = new Array(...arr)
     logDebug('found sendmsgbucket', arr)
-    for (let item of arr) {
+    for (let item of arrNew) {
         logDebug('sending message', item)
-        io.emit('message', item)
+        await io.emitWithAck('message', item).then(() => lodash.remove(arrNew, item))
     }
+    await ipcExec(() => ipcPut('sendmsgbucket', arrNew))
 }
 
-/************** code below are mostly utils **************/
+// code below are mostly utils
 
 async function ipcGet(key: string) {
     const tryFn = async () => {
         const str = await fs.readFile(IPCPATH, 'utf8')
-        logDebug(`ipcGet: ipc.json: `, str)
-        const json = JSON.parse(str)
+        logDebug(`ipcGet:  key:`, key, `  ipc.json:`, str)
+        const json: Record<string, any> = JSON.parse(str)
         let value = json[key]
         if (value === undefined) value = null
         return value
@@ -75,15 +78,18 @@ async function ipcGet(key: string) {
     return retryableRun(tryFn, catchFn)
 }
 
-async function ipcPut(key: string, val: string) {
+async function ipcPut(
+    key: string,
+    val: Record<string, any> | Array<any> | string | number
+) {
     const tryFn = async () => {
         const str = await fs.readFile(IPCPATH, 'utf8')
-        logDebug(`ipcPut: ipc.json: `, str)
-        const json = JSON.parse(str)
+        logDebug(`ipcPut:  `, key, `  ipc.json:`, str)
+        const json: Record<string, any> = JSON.parse(str)
         json[key] = val
         await fs.writeJson(IPCPATH, json)
     }
-    const catchFn = async e => logDebug('ipcPut: something failed: retry', e)
+    const catchFn = e => logDebug('ipcPut: something failed: retry', e)
 
     return retryableRun(tryFn, catchFn)
 }
@@ -104,14 +110,8 @@ function logDebug(...any) {
 /** checks if event loop should continue running */
 async function toLoop() {
     let result = true
-    try {
-        const userstate = await ipcExec(() => ipcGet('userstate'))
-        if (userstate == 'false') result = false
-        //else result = false
-    } catch (err) {
-        //result = false
-        result = true
-    }
+	const userstate = await ipcExec(() => ipcGet('userstate'))
+	if (userstate === false) result = false
     return result
 }
 

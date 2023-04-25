@@ -21,55 +21,47 @@
 char *linenoise_prompt = NULL;
 char *username = NULL;
 
-void sendbuckets_add(char *buffer, const char *username) {
+void sendbuckets_add(char buffer[], const char *username) {
 	char *_buffer = strdup(buffer);
 	char *strbuffer = strinit(1);
 	strappend(&strbuffer, _buffer);
 	free(_buffer);
 	/*linenoise_buffer[0] = '\0';*/
 
-	json_object *json = json_object_new_object();
-	json_object_object_add(json, "username", json_object_new_string(username));
-	json_object_object_add(json, "type", json_object_new_string("message"));
-	json_object_object_add(json, "data", json_object_new_string(strbuffer));
-	logdebug("source object: %s\n", json_object_to_json_string(json));
+	json_object *obj = json_object_new_object();
+	json_object_object_add(obj, "username", json_object_new_string(username));
+	json_object_object_add(obj, "type", json_object_new_string("message"));
+	json_object_object_add(obj, "data", json_object_new_string(strbuffer));
+	logdebug("source object: %s\n", json_object_to_json_string(obj));
 
-	// read existing array, and add this at the end
-	char *bucket = ipc_get("sendmsgbucket"); // "[...]"
-	logdebug("sendbuckets_add: leveldbget:%zu %s\n", strlen(bucket), bucket);
-	json_object *bucketarr = json_tokener_parse(bucket);
-	json_parse_check(bucketarr, bucket);
-	json_object_array_add(bucketarr, json);
-
-	const char *dbarr = json_object_to_json_string(bucketarr);
-	ipc_put("sendmsgbucket", dbarr);
-	json_object_put(bucketarr);
+	json_object *bucketarr = ipc_get_array("sendmsgbucket");
+	json_object_array_add(bucketarr, obj);
+	ipc_put_array("sendmsgbucket", bucketarr);
 }
 
 char *recvbucket_get() {
 	char *result = strinit(1);
-	char *arr = ipc_get("recvmsgbucket");
-	if (strlen(arr) < 3)
-		return "";
-	ipc_put("recvmsgbucket", "[]");
-	json_object *arrj = json_tokener_parse(arr);
-	json_parse_check(arrj, arr);
-	int len = json_object_array_length(arrj);
-	for (int i = 0; i < len; i++) {
-		json_object *o = json_object_array_get_idx(arrj, i);
-		json_parse_check(o, arr);
-		json_object *jusername = json_object_object_get(o, "username");
-		json_parse_check(jusername, arr);
+	json_object *recvarr =ipc_get_array("recvmsgbucket");
+	ipc_put_array("recvmsgbucket", json_object_new_array()); // empty array
+	int arrlen = json_object_array_length(recvarr);
+	for (int i = 0; i < arrlen; i++) {
+		json_object *item = json_object_array_get_idx(recvarr, i);
+		json_parse_check(item, "");
+
+		json_object *jusername = json_object_object_get(item, "username");
+		json_parse_check(jusername, "");
 		const char *sender = json_object_get_string(jusername);
-		json_object *jdata = json_object_object_get(o, "data");
-		json_parse_check(jdata, arr);
+
+		json_object *jdata = json_object_object_get(item, "data");
+		json_parse_check(jdata, "");
 		const char *message = json_object_get_string(jdata);
+
 		strappend(&result, sender);
 		strappend(&result, ": ");
 		strappend(&result, message);
 		strappend(&result, "\r\n");
 	}
-	json_object_put(arrj);
+	json_object_put(recvarr);
 	return result;
 }
 
@@ -81,7 +73,7 @@ int main(int argc, char *argv[]) {
 
 	createnewipc();
 	initnewipc();
-	username = ipc_get("username");
+	username = ipc_get_string("username");
 
 	char *prompt = strinit(1);
 	strappend(&prompt, username);
@@ -103,7 +95,7 @@ int main(int argc, char *argv[]) {
 
 			FD_ZERO(&readfds);
 			FD_SET(ls.ifd, &readfds);
-			tv.tv_usec = 1000 * 500; // 500ms
+			tv.tv_usec = 1000 * 50; // 50ms
 
 			retval = select(ls.ifd + 1, &readfds, NULL, NULL, &tv);
 			if (retval == -1) {
@@ -126,7 +118,7 @@ int main(int argc, char *argv[]) {
 		bool _break = false;
 		char *linenoise_buffer = buf;
 		if (strcmp(linenoise_buffer, "/exit") == 0) {
-			ipc_put("userstate", "false");
+			ipc_put_boolean("userstate", false);
 			_break = true;
 			// break; // because `char* line` needs to be freed
 		} else if (strncmp(linenoise_buffer, "/name", 5) == 0) {
@@ -136,7 +128,7 @@ int main(int argc, char *argv[]) {
 				uname[j++] = linenoise_buffer[i];
 
 			uname[j] = '\0';
-			ipc_put("username", uname);
+			ipc_put_string("username", uname);
 			username = uname;
 			strcpy(linenoise_prompt, "");
 			strappend(&linenoise_prompt, uname);

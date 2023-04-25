@@ -46,4 +46,4 @@ void sioclientinit(char *execname) {
 }
 
 
-void sioclientcleanup() {ipc_put("userstate", "false");}
+void sioclientcleanup() {ipc_put_boolean("userstate", false);}
