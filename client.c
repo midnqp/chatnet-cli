@@ -95,7 +95,7 @@ int main(int argc, char *argv[]) {
 
 			FD_ZERO(&readfds);
 			FD_SET(ls.ifd, &readfds);
-			tv.tv_usec = 1000 * 50; // 50ms
+			tv.tv_usec = 1000 * 500; // 500ms
 
 			retval = select(ls.ifd + 1, &readfds, NULL, NULL, &tv);
 			if (retval == -1) {
@@ -106,9 +106,10 @@ int main(int argc, char *argv[]) {
 				if (line != linenoiseEditMore)
 					break;
 			} else {
-				// Timeout occurred
+				const char* output = recvbucket_get();
+				if(!strlen(output)) continue;
 				linenoiseHide(&ls);
-				printf("%s", recvbucket_get());
+				printf("%s", output);
 				linenoiseShow(&ls);
 			}
 		}
