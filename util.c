@@ -21,6 +21,25 @@ void log_cleanup() {
 /* check if file or folder exists */
 bool entexists(char *filename) { return access(filename, F_OK) != -1; }
 
+bool cmdexists(char *cmdname) {
+	char str[1024];
+#ifdef _WIN32
+	const char *which_cmd = "where";
+	const char *null_dev = "NUL";
+#else
+	const char *which_cmd = "which";
+	const char *null_dev = "/dev/null";
+#endif
+
+	snprintf(str, sizeof(str), "%s %s > %s 2>&1", which_cmd, cmdname, null_dev);
+	return system(str) == 0;
+}
+
+/* runs a system cmd and returns output */
+char* system_out(char* cmd) {
+	return NULL;
+}
+
 char *getconfigdir() {
 	char *result = strinit(1);
 	strappend(&result, getenv("HOME"));

@@ -1,29 +1,49 @@
+#include <stdlib.h>
+
 #include "sio-client.h"
 #include "ipc.h"
+#include "util.h"
 
 char *sioc_name = "chatnet-sio-client";
 
 status init(char *execname) {
 	status err;
-	char *dir = dirname(execname);
+	char* dir = strinit(1024);
+	realpath(dirname(execname), dir);
+	/* don't spawn if true */
+	bool flag_nosioclient = getenv("CHATNET_NOSIOCLIENT") != NULL;
 
-	// check if executable found
+	// check if executable found in same folder
 	char *sioclientpath = strinit(1);
 	strappend(&sioclientpath, dir);
 	strappend(&sioclientpath, "/");
 	strappend(&sioclientpath, sioc_name);
-	if (!entexists(sioclientpath)) {
+	bool found_dir = entexists(sioclientpath);
+
+	// check if executable found in PATH
+	bool found_bin = cmdexists(sioc_name);
+
+	char *cmd = strinit(1);
+	if (found_dir) {
+		strappend(&cmd, sioclientpath);
+		logdebug("found %s in same folder %s\n", sioc_name, dir);
+	}
+	else if (found_bin) {
+		strappend(&cmd, sioc_name);
+		logdebug("found %s in system $PATH\n", sioc_name, dir);
+	}
+	else if (!flag_nosioclient) {
 		err.code = 1;
-		sprintf(err.msg, "binary \"%s\" not found in the same folder.",
-				sioc_name);
+		sprintf(err.msg,
+				"binary \"%s\" not found in the same folder \"%s\", or in "
+				"system $PATH.",
+				sioc_name, dir);
 		return err;
 	}
 
 	// launch executable
-	char *cmd = strinit(1);
-	strappend(&cmd, sioclientpath);
 	strappend(&cmd, " &");
-	if (getenv("CHATNET_NOSIOCLIENT") == NULL) {
+	if (!flag_nosioclient) {
 		logdebug("starting sio-client\n");
 		int opened = system(cmd);
 		if (opened == -1) {
@@ -45,5 +65,4 @@ void sioclientinit(char *execname) {
 	}
 }
 
-
-void sioclientcleanup() {ipc_put_boolean("userstate", false);}
+void sioclientcleanup() { ipc_put_boolean("userstate", false); }

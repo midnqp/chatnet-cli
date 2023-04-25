@@ -39,6 +39,8 @@ static bool f_log_inited = false;
 
 bool entexists(char *filename);
 
+bool cmdexists(char *cmdname);
+
 char* getconfigdir();
 
 char *getipcdir();
