@@ -4,17 +4,24 @@
         "commitMessage": "chore: release v${version}",
         "tag": true
     },
-	"npm" :{
-		"publish":false
-	},
-	"github" :{
-		"release":true,
-		"web":true
-	},
-	"hooks":{},
-	"plugins": {
-    "@j-ulrich/release-it-regex-bumper": {
-		"in":null,
-		"out":{"file":"dist/bundle.cjs", "search": "globalThis.CLIENT_BUILD_VERSION", "replace":"\"{{version}}\""}
-	}}
+    "npm": {
+        "publish": false
+    },
+    "github": {
+        "release": true,
+        "web": true
+    },
+    "plugins": {
+        "@j-ulrich/release-it-regex-bumper": {
+            "in": null,
+            "out": {
+                "file": "dist/bundle.cjs",
+                "search": "globalThis.CLIENT_BUILD_VERSION",
+                "replace": "\"{{version}}\""
+            }
+        }
+    },
+    "hooks": {
+		"after:release" : "npm run pkg && npx boxen-cli  --title-alignment center --padding 1  --title notice \"make sure to bump the LATEST_VER in server.js\""
+	}
 }
