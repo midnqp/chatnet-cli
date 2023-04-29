@@ -184,5 +184,5 @@ async function retryableRun(tryFn, catchFn: Function = () => {}) {
 }
 
 type IpcMsgBucket = Array<SioMessage>
-type SioMessage = { type: 'message'; username: string; data: string }
+type SioMessage = { type: 'message'; username: string; data: any}
 type SioMeta = { type: 'file'; name: string; data: string }

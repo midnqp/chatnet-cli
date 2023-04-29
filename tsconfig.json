@@ -15,6 +15,6 @@
         "skipLibCheck": true,
         "noImplicitAny": false
     },
-    "include": ["./client.ts"],
+    "include": ["./client.ts", "./server.ts"],
     "exclude": ["node_modules"]
 }
