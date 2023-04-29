@@ -13,7 +13,7 @@ const IPCUNLOCKF = path.join(IPCDIR, 'UNLOCK')
 const IPCLOGF = path.join(IPCDIR, 'log-latest.txt')
 const CLIENTUPF = path.join(IPCDIR, 'CLIENTUP')
 const SERVERURL = 'https://chatnet-server.midnqp.repl.co'
-const io = socketioClient(SERVERURL)
+const io = socketioClient(SERVERURL, {query: {version: globalThis.CLIENT_BUILD_VERSION }})
 main()
 
 async function main() {
