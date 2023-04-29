@@ -1,0 +1,20 @@
+{
+    "git": {
+        "commit": true,
+        "commitMessage": "chore: release v${version}",
+        "tag": true
+    },
+	"npm" :{
+		"publish":false
+	},
+	"github" :{
+		"release":true,
+		"web":true
+	},
+	"hooks":{},
+	"plugins": {
+    "@j-ulrich/release-it-regex-bumper": {
+		"in":null,
+		"out":{"file":"dist/bundle.cjs", "search": "globalThis.CLIENT_BUILD_VERSION", "replace":"\"{{version}}\""}
+	}}
+}

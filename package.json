@@ -16,8 +16,10 @@
 		"socket.io-client": "^4.6.1"
 	},
 	"devDependencies": {
+		"@j-ulrich/release-it-regex-bumper": "^4.1.1",
 		"@types/fs-extra": "^11.0.1",
 		"@types/lodash": "^4.14.194",
-		"@types/node": "^18.15.13"
+		"@types/node": "^18.15.13",
+		"release-it": "^15.10.1"
 	}
 }
