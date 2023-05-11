@@ -20,6 +20,9 @@ cd dist && cmake .. && make && cd ..
 sudo mv dist/chatnet dist/chatnet-sio-client  /usr/local/bin/
 ```
 
-For static binaries, simply use this line instead: `cd dist && cmake -DCMAKE_BUILD_TYPE=Release .. && make && cd ..`
+For static binaries, simply replace the 5th line with:
+```sh
+cd dist && cmake -DCMAKE_BUILD_TYPE=Release .. && make && cd ..
+```
 
 To build and run on Windows, make sure to use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install).
