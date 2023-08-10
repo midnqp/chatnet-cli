@@ -43,6 +43,8 @@ bool cmdexists(char *cmdname);
 
 char* getconfigdir();
 
+char *getconfigfile();
+
 char *getipcdir();
 
 char *getipcpath();
@@ -60,6 +62,8 @@ void unsetipclock();
 void setipclock();
 
 void createnewipc();
+
+char* genusername();
 
 void initnewipc();
 

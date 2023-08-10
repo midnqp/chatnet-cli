@@ -10,6 +10,7 @@
 #include <sys/select.h>
 #include <unistd.h>
 #include <uuid/uuid.h>
+#include <assert.h>
 
 #include "deps/linenoise/linenoise.h"
 #include "deps/sc/sc_log.h"
@@ -65,6 +66,50 @@ char *recvbucket_get() {
 	return result;
 }
 
+// Note: do not access config from threads!
+char* config_get_string(const char* key) {
+	char* configfile = getconfigfile();
+	assert(entexists(configfile) == true);
+	char* file = file_read(configfile);
+	json_object *jsono = json_tokener_parse(file);
+	json_parse_check(jsono, file);
+
+	char* result = strinit(1);
+	json_object* value;
+	bool found = json_object_object_get_ex(jsono, key, &value);
+	assert(found == true);
+	strappend(&result, json_object_get_string(value));
+	json_object_put(jsono);	
+	
+	return result;
+}
+
+bool config_get_is_key(const char* key) {
+	char* configfile = getconfigfile();
+	assert(entexists(configfile) == true);
+	char* file = file_read(configfile);
+	json_object *jsono = json_tokener_parse(file);
+	json_parse_check(jsono, file);
+
+	json_object* value;
+	bool found = json_object_object_get_ex(jsono, key, &value);
+	json_object_put(jsono);
+	return found;
+}
+
+void config_put_string(const char* key, const char* val) {
+	char* configfile = getconfigfile();
+	assert(entexists(configfile) == true);
+	char* file = file_read(configfile);
+	json_object *jsono = json_tokener_parse(file);
+	json_parse_check(jsono, file);
+
+	json_object_object_add(jsono, key, json_object_new_string(val));
+	const char *contents = json_object_to_json_string(jsono);
+	file_write(configfile, contents);
+	json_object_put(jsono);	
+}
+
 int main(int argc, char *argv[]) {
 	(void)argc;
 	sc_log_set_thread_name("thread-main");
@@ -73,7 +118,18 @@ int main(int argc, char *argv[]) {
 
 	createnewipc();
 	initnewipc();
-	username = ipc_get_string("username");
+
+	// check if config file exists, create if none
+	char* configfile = getconfigfile();
+	if (!entexists(configfile)) {
+		file_write(configfile, "{}");
+	}
+	// check if username exists in config
+	if (config_get_is_key("username")) {
+		username = config_get_string("username");
+	}
+	else username = genusername();
+
 
 	char *prompt = strinit(1);
 	strappend(&prompt, username);
@@ -130,6 +186,7 @@ int main(int argc, char *argv[]) {
 
 			uname[j] = '\0';
 			ipc_put_string("username", uname);
+			config_put_string("username", uname);
 			username = uname;
 			strcpy(linenoise_prompt, "");
 			strappend(&linenoise_prompt, uname);

@@ -47,9 +47,15 @@ char *getconfigdir() {
 	return result;
 }
 
+char *getconfigfile() {
+	char* dir = getconfigdir();
+	strappend(&dir, "/.chatnet.json");
+	return dir;
+}
+
 char *getipcdir() {
 	char *dir = getconfigdir();
-	strappend(&dir, "/chatnet-client");
+	strappend(&dir, "/.chatnet-client");
 	return dir;
 }
 
