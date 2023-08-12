@@ -149,7 +149,7 @@ int main(int argc, char *argv[]) {
 		bool _break = false;
 		char *line;
 		struct linenoiseState ls;
-		char buf[1024];
+		char buf[10240];
 		linenoiseEditStart(&ls, -1, -1, buf, sizeof(buf), linenoise_prompt);
 		while (1) {
 			fd_set readfds;
@@ -202,11 +202,13 @@ int main(int argc, char *argv[]) {
 			// break; // because `char* line` needs to be freed
 		} else if (strncmp(linenoise_buffer, "/name", 5) == 0) {
 			char *uname = strinit(16 + 1);
-			int j = 0;
-			for (int i = 6; (i < 16 + 6 || linenoise_buffer[i] != '\0'); i++)
-				uname[j++] = linenoise_buffer[i];
+			int a;
+			for (a=6; a < 16+6; a++) {
+				if (linenoise_buffer[a] == '\0') break;
+				uname[a-6] = linenoise_buffer[a];
+			}
+			uname[a-6] = '\0';
 
-			uname[j] = '\0';
 			ipc_put_string("username", uname); // this gets noticed by checkIfAuthChanged() in client.ts
 			//config_put_string("username", uname);
 			username = uname;
