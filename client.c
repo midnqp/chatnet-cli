@@ -168,14 +168,14 @@ int main(int argc, char *argv[]) {
 			} else if (retval) {
 				logdebug("receiving input\n");
 				line = linenoiseEditFeed(&ls);
-				if (line != linenoiseEditMore)
+				if (line != linenoiseEditMore && ls.len > 0) // disallow empty editfeed
 					break;
 			} else {
 				logdebug("checking for any output\n");
 				long nowinms = datenowms();
 				ipc_put_string("lastping-cclient", long_to_string(nowinms));
 				long lastping = strtol(ipc_get_string("lastping-sioclient"), NULL, 10);
-				logdebug("lastpings %s %s %ld---------------------------------------\n", long_to_string(nowinms), long_to_string(lastping), nowinms-lastping);
+				logdebug("lastpings %s %s %ld\n", long_to_string(nowinms), long_to_string(lastping), nowinms-lastping);
 				char* output = NULL;
 				if ((nowinms - lastping) > 10000) {
 					_break = true;

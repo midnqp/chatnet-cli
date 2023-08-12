@@ -947,6 +947,9 @@ char *linenoiseEditFeed(struct linenoiseState *l) {
         if (c == 0) return linenoiseEditMore;
     }
 
+    // midnqp: disallow empty editfeed
+    if (c == ENTER && l->len == 0) return NULL;
+
     switch(c) {
     case ENTER:    /* enter */
         history_len--;
