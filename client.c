@@ -11,6 +11,7 @@
 #include <sys/select.h>
 #include <unistd.h>
 #include <uuid/uuid.h>
+#include <ctype.h>
 
 #include "deps/linenoise/linenoise.h"
 #include "deps/sc/sc_log.h"
@@ -204,8 +205,10 @@ int main(int argc, char *argv[]) {
 			char *uname = strinit(16 + 1);
 			int a;
 			for (a=6; a < 16+6; a++) {
-				if (linenoise_buffer[a] == '\0') break;
-				uname[a-6] = linenoise_buffer[a];
+				char c=linenoise_buffer[a];
+				if (c == '\0') break;
+				if (isalpha(c)) 
+					uname[a-6] = tolower(c);
 			}
 			uname[a-6] = '\0';
 
