@@ -1,5 +1,6 @@
 #include "deps/linenoise/linenoise.h"
 #include <assert.h>
+#include <ctype.h>
 #include <gc.h>
 #include <gc/gc.h>
 #include <json-c/json.h>
@@ -11,7 +12,6 @@
 #include <sys/select.h>
 #include <unistd.h>
 #include <uuid/uuid.h>
-#include <ctype.h>
 
 #include "deps/linenoise/linenoise.h"
 #include "deps/sc/sc_log.h"
@@ -20,15 +20,11 @@
 #include "str.h"
 #include "util.h"
 
-char *linenoise_prompt = NULL;
-char *username = NULL;
-
 void sendbuckets_add(char buffer[], const char *username) {
 	char *_buffer = strdup(buffer);
 	char *strbuffer = strinit(1);
 	strappend(&strbuffer, _buffer);
 	free(_buffer);
-	/*linenoise_buffer[0] = '\0';*/
 
 	json_object *obj = json_object_new_object();
 	json_object_object_add(obj, "username", json_object_new_string(username));
@@ -125,29 +121,30 @@ int main(int argc, char *argv[]) {
 	if (!entexists(configfile)) {
 		file_write(configfile, "{}");
 	}
-	// check if username exists in config
-	if (config_get_is_key("username")) {
-		username = config_get_string("username");
-	} else {
-		//username = genusername();
-		username = strinit(1);
-		strappend(&username, "[name not set]");
-	}
 	// check if auth exists in config
 	if (!config_get_is_key("auth")) {
 		config_put_string("auth", "");
 	}
-
-	char *prompt = strinit(1);
-	strappend(&prompt, username);
-	strappend(&prompt, ": ");
-	linenoise_prompt = prompt;
 
 	sioclientinit(argv[0]);
 	atexit(sioclientcleanup);
 
 	while (1) {
 		bool _break = false;
+		char *username = NULL;
+		char *linenoise_prompt = NULL;
+		// check if username exists in config
+		if (config_get_is_key("username")) {
+			username = config_get_string("username");
+		} else {
+			username = strinit(1);
+			strappend(&username, "[name not set]");
+		}
+		// set the prompt
+		linenoise_prompt = strinit(1);
+		strappend(&linenoise_prompt, username);
+		strappend(&linenoise_prompt, ": ");
+
 		char *line;
 		struct linenoiseState ls;
 		char buf[10240];
@@ -176,21 +173,24 @@ int main(int argc, char *argv[]) {
 				long nowinms = datenowms();
 				ipc_put_string("lastping-cclient", long_to_string(nowinms));
 				long lastping = strtol(ipc_get_string("lastping-sioclient"), NULL, 10);
-				logdebug("lastpings %s %s %ld\n", long_to_string(nowinms), long_to_string(lastping), nowinms-lastping);
-				char* output = NULL;
+				logdebug("lastpings %s %s %ld\n", long_to_string(nowinms), long_to_string(lastping),
+						 nowinms - lastping);
+				char *output = NULL;
 				if ((nowinms - lastping) > 10000) {
 					_break = true;
 					output = strinit(1);
 					strappend(&output, "chatnet: terminating, something went awry :(\n");
+				} else {
+					output = recvbucket_get();
 				}
-				else {output = recvbucket_get();}
 				if (!strlen(output))
 					continue;
 				linenoiseHide(&ls);
 				printf("%s", output);
 				linenoiseShow(&ls);
 
-				if (_break) break;
+				if (_break)
+					break;
 			}
 		}
 
@@ -200,24 +200,21 @@ int main(int argc, char *argv[]) {
 		if (strcmp(linenoise_buffer, "/exit") == 0) {
 			ipc_put_boolean("userstate", false);
 			_break = true;
-			// break; // because `char* line` needs to be freed
+			// break; because `char* line` needs to be freed
 		} else if (strncmp(linenoise_buffer, "/name", 5) == 0) {
 			char *uname = strinit(16 + 1);
 			int a;
-			for (a=6; a < 16+6; a++) {
-				char c=linenoise_buffer[a];
-				if (c == '\0') break;
-				if (isalpha(c)) 
-					uname[a-6] = tolower(c);
+			for (a = 6; a < 16 + 6; a++) {
+				char c = linenoise_buffer[a];
+				if (c == '\0')
+					break;
+				if (isalpha(c))
+					uname[a - 6] = tolower(c);
 			}
-			uname[a-6] = '\0';
+			uname[a - 6] = '\0';
 
-			ipc_put_string("username", uname); // this gets noticed by checkIfAuthChanged() in client.ts
-			//config_put_string("username", uname);
-			username = uname;
-			strcpy(linenoise_prompt, "");
-			strappend(&linenoise_prompt, uname);
-			strappend(&linenoise_prompt, ": ");
+			// this gets noticed by checkIfAuthChanged() in client.ts
+			ipc_put_string("username", uname);
 		} else
 			sendbuckets_add(linenoise_buffer, username);
 
