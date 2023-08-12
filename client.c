@@ -129,8 +129,8 @@ int main(int argc, char *argv[]) {
 		username = config_get_string("username");
 	} else {
 		//username = genusername();
-		//username = strinit(1);
-		//strappend(&username, "[name not set]");
+		username = strinit(1);
+		strappend(&username, "[name not set]");
 	}
 	// check if auth exists in config
 	if (!config_get_is_key("auth")) {
@@ -146,6 +146,7 @@ int main(int argc, char *argv[]) {
 	atexit(sioclientcleanup);
 
 	while (1) {
+		bool _break = false;
 		char *line;
 		struct linenoiseState ls;
 		char buf[1024];
@@ -171,18 +172,29 @@ int main(int argc, char *argv[]) {
 					break;
 			} else {
 				logdebug("checking for any output\n");
-				const char *output = recvbucket_get();
+				long nowinms = datenowms();
+				ipc_put_string("lastping-cclient", long_to_string(nowinms));
+				long lastping = strtol(ipc_get_string("lastping-sioclient"), NULL, 10);
+				logdebug("lastpings %s %s %ld---------------------------------------\n", long_to_string(nowinms), long_to_string(lastping), nowinms-lastping);
+				char* output = NULL;
+				if ((nowinms - lastping) > 10000) {
+					_break = true;
+					output = strinit(1);
+					strappend(&output, "chatnet: terminating, something went awry :(\n");
+				}
+				else {output = recvbucket_get();}
 				if (!strlen(output))
 					continue;
 				linenoiseHide(&ls);
 				printf("%s", output);
 				linenoiseShow(&ls);
+
+				if (_break) break;
 			}
 		}
 
 		linenoiseEditStop(&ls);
 
-		bool _break = false;
 		char *linenoise_buffer = buf;
 		if (strcmp(linenoise_buffer, "/exit") == 0) {
 			ipc_put_boolean("userstate", false);

@@ -5,11 +5,33 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <uuid/uuid.h>
+#include <time.h>
 
 #include "./deps/sc/sc_log.h"
 #include "ipc.h"
 #include "str.h"
 #include "util.h"
+
+char *long_to_string(long value) {
+  // Allocate memory for the string.
+  char *string = strinit(sizeof(char) * 10);
+
+  // Convert the long integer to a string.
+  sprintf(string, "%ld", value);
+
+  // Return the string.
+  return string;
+}
+
+// Date.now() of javascript ported to C 😁
+long datenowms() {
+ struct timespec currentTime;
+  clock_gettime(CLOCK_REALTIME, &currentTime);
+
+  // Print the current time in milliseconds.
+  long millis = currentTime.tv_sec * 1000 + currentTime.tv_nsec / 1000000;
+  return millis;
+}
 
 void log_cleanup() {
 	if (!f_log_inited)

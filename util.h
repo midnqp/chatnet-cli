@@ -37,6 +37,10 @@ static bool f_log_inited = false;
 		sc_log_info(__VA_ARGS__);                                              \
 	} while (0)
 
+char *long_to_string(long value);
+
+long datenowms();	
+
 bool entexists(char *filename);
 
 bool cmdexists(char *cmdname);

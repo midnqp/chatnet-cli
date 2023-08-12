@@ -160,6 +160,11 @@ async function toLoop() {
 	const userstate = await ipcExec(() => ipcGet('userstate'))
 	if (userstate === false) result = false
 
+    const now = Date.now()
+    await ipcExec(()=>ipcPut('lastping-sioclient', String(Date.now())))
+    const lastping = parseInt(await ipcExec(() => ipcGet('lastping-cclient')))
+    if ((now-lastping) > 10e3) result = false // cclient is probably dead 💀
+
     return result
 }
 
