@@ -95,7 +95,7 @@ void unsetipclock() { rename(getipclockfile(), getipcunlockfile()); }
 
 void createnewipc() {
 	char *ipcpath = getipcpath();
-	char *ipcdir = getipcdir();
+	char *ipcdir = getipcdir(); // not removed across client sessions.
 	char *unlockfile = getipcunlockfile();
 	char *lockfile = getipclockfile();
 	char *configdir = getconfigdir();
@@ -130,7 +130,7 @@ void initnewipc() {
 	ipc_put_boolean("userstate", true);
 	ipc_put_array("sendmsgbucket", json_object_new_array());
 	ipc_put_array("recvmsgbucket", json_object_new_array());
-	ipc_put_string("username", genusername());
+	//ipc_put_string("username", genusername());
 }
 
 char *file_read(const char *filename) {

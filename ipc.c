@@ -31,6 +31,7 @@ void ipc_init(json_object **jsono) {
 
 		int waitms = 100 * 1000; // 100 ms
 		timeoutc += waitms;
+		logdebug("ipc_init: sleeping for 100ms\n");
 		usleep(waitms);
 	}
 

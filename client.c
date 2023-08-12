@@ -1,4 +1,5 @@
 #include "deps/linenoise/linenoise.h"
+#include <assert.h>
 #include <gc.h>
 #include <gc/gc.h>
 #include <json-c/json.h>
@@ -10,7 +11,6 @@
 #include <sys/select.h>
 #include <unistd.h>
 #include <uuid/uuid.h>
-#include <assert.h>
 
 #include "deps/linenoise/linenoise.h"
 #include "deps/sc/sc_log.h"
@@ -33,7 +33,7 @@ void sendbuckets_add(char buffer[], const char *username) {
 	json_object_object_add(obj, "username", json_object_new_string(username));
 	json_object_object_add(obj, "type", json_object_new_string("message"));
 	json_object_object_add(obj, "data", json_object_new_string(strbuffer));
-	logdebug("source object: %s\n", json_object_to_json_string(obj));
+	logdebug("sendbuckets_add: source object: %s\n", json_object_to_json_string(obj));
 
 	json_object *bucketarr = ipc_get_array("sendmsgbucket");
 	json_object_array_add(bucketarr, obj);
@@ -42,7 +42,7 @@ void sendbuckets_add(char buffer[], const char *username) {
 
 char *recvbucket_get() {
 	char *result = strinit(1);
-	json_object *recvarr =ipc_get_array("recvmsgbucket");
+	json_object *recvarr = ipc_get_array("recvmsgbucket");
 	ipc_put_array("recvmsgbucket", json_object_new_array()); // empty array
 	int arrlen = json_object_array_length(recvarr);
 	for (int i = 0; i < arrlen; i++) {
@@ -67,47 +67,47 @@ char *recvbucket_get() {
 }
 
 // Note: do not access config from threads!
-char* config_get_string(const char* key) {
-	char* configfile = getconfigfile();
+char *config_get_string(const char *key) {
+	char *configfile = getconfigfile();
 	assert(entexists(configfile) == true);
-	char* file = file_read(configfile);
+	char *file = file_read(configfile);
 	json_object *jsono = json_tokener_parse(file);
 	json_parse_check(jsono, file);
 
-	char* result = strinit(1);
-	json_object* value;
+	char *result = strinit(1);
+	json_object *value;
 	bool found = json_object_object_get_ex(jsono, key, &value);
 	assert(found == true);
 	strappend(&result, json_object_get_string(value));
-	json_object_put(jsono);	
-	
+	json_object_put(jsono);
+
 	return result;
 }
 
-bool config_get_is_key(const char* key) {
-	char* configfile = getconfigfile();
+bool config_get_is_key(const char *key) {
+	char *configfile = getconfigfile();
 	assert(entexists(configfile) == true);
-	char* file = file_read(configfile);
+	char *file = file_read(configfile);
 	json_object *jsono = json_tokener_parse(file);
 	json_parse_check(jsono, file);
 
-	json_object* value;
+	json_object *value;
 	bool found = json_object_object_get_ex(jsono, key, &value);
 	json_object_put(jsono);
 	return found;
 }
 
-void config_put_string(const char* key, const char* val) {
-	char* configfile = getconfigfile();
+void config_put_string(const char *key, const char *val) {
+	char *configfile = getconfigfile();
 	assert(entexists(configfile) == true);
-	char* file = file_read(configfile);
+	char *file = file_read(configfile);
 	json_object *jsono = json_tokener_parse(file);
 	json_parse_check(jsono, file);
 
 	json_object_object_add(jsono, key, json_object_new_string(val));
 	const char *contents = json_object_to_json_string(jsono);
 	file_write(configfile, contents);
-	json_object_put(jsono);	
+	json_object_put(jsono);
 }
 
 int main(int argc, char *argv[]) {
@@ -120,16 +120,22 @@ int main(int argc, char *argv[]) {
 	initnewipc();
 
 	// check if config file exists, create if none
-	char* configfile = getconfigfile();
+	char *configfile = getconfigfile();
 	if (!entexists(configfile)) {
 		file_write(configfile, "{}");
 	}
 	// check if username exists in config
 	if (config_get_is_key("username")) {
 		username = config_get_string("username");
+	} else {
+		//username = genusername();
+		//username = strinit(1);
+		//strappend(&username, "[name not set]");
 	}
-	else username = genusername();
-
+	// check if auth exists in config
+	if (!config_get_is_key("auth")) {
+		config_put_string("auth", "");
+	}
 
 	char *prompt = strinit(1);
 	strappend(&prompt, username);
@@ -151,6 +157,7 @@ int main(int argc, char *argv[]) {
 
 			FD_ZERO(&readfds);
 			FD_SET(ls.ifd, &readfds);
+			tv.tv_sec = 0;
 			tv.tv_usec = 1000 * 500; // 500ms
 
 			retval = select(ls.ifd + 1, &readfds, NULL, NULL, &tv);
@@ -158,12 +165,15 @@ int main(int argc, char *argv[]) {
 				perror("select()");
 				exit(1);
 			} else if (retval) {
+				logdebug("receiving input\n");
 				line = linenoiseEditFeed(&ls);
 				if (line != linenoiseEditMore)
 					break;
 			} else {
-				const char* output = recvbucket_get();
-				if(!strlen(output)) continue;
+				logdebug("checking for any output\n");
+				const char *output = recvbucket_get();
+				if (!strlen(output))
+					continue;
 				linenoiseHide(&ls);
 				printf("%s", output);
 				linenoiseShow(&ls);
@@ -185,8 +195,8 @@ int main(int argc, char *argv[]) {
 				uname[j++] = linenoise_buffer[i];
 
 			uname[j] = '\0';
-			ipc_put_string("username", uname);
-			config_put_string("username", uname);
+			ipc_put_string("username", uname); // this gets noticed by checkIfAuthChanged() in client.ts
+			//config_put_string("username", uname);
 			username = uname;
 			strcpy(linenoise_prompt, "");
 			strappend(&linenoise_prompt, uname);

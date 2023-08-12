@@ -8,12 +8,13 @@ import lodash from 'lodash'
 const IPCTIMEOUT = 15000 as const // 15 sec
 const IPCDIR = getIpcDir()
 const IPCPATH = path.join(IPCDIR, 'ipc.json')
+const CONFIGPATH = path.join(IPCDIR, '..', '.chatnet.json')
 const IPCLOCKF = path.join(IPCDIR, 'LOCK')
 const IPCUNLOCKF = path.join(IPCDIR, 'UNLOCK')
 const IPCLOGF = path.join(IPCDIR, 'log-latest.txt')
 const CLIENTUPF = path.join(IPCDIR, 'CLIENTUP')
 const SERVERURL = 'https://chatnet-server.midnqp.repl.co'
-const io = socketioClient(SERVERURL, {query: {version: globalThis.CLIENT_BUILD_VERSION }})
+const io = socketioClient(SERVERURL)
 main()
 
 async function main() {
@@ -26,6 +27,7 @@ async function main() {
 
     logDebug('send-msg-loop starting')
     while (await toLoop()) {
+        await checkIfAuthChanged()
         await emitFromSendQueue()
         await sleep(500)
     }
@@ -34,6 +36,25 @@ async function main() {
     io.close()
     setClientUnavailable()
     logDebug('bye')
+}
+
+async function checkIfAuthChanged() {
+    const username = await ipcExec(()=>ipcGet('username'))
+    if (username) {
+        const auth = await configGet('auth');
+        const {auth:authBearer} = await io.emitWithAck('auth', {auth, type:'auth', data: username})
+        if (authBearer == '') {
+            // sad :(
+            // "he was last seen 24 days ago"
+            await addToRecvQueue({data: 'sorry, someone with this username is already signed up :(', type: 'message', username: 'chatnet'})
+            await ipcPut('username', undefined)
+        }
+        else {
+            await configPut('auth', authBearer)
+            await configPut('username', username)
+            await ipcPut('username', undefined)
+        }
+    }
 }
 
 async function addToRecvQueue(msg: SioMessage) {
@@ -51,19 +72,44 @@ async function emitFromSendQueue() {
     //let arr: IpcMsgBucket = JSON.parse(bucket)
     const arr = bucket
 
+    const authBearer = await configGet('auth')
+
     if (!arr.length) return
 
     const arrNew = new Array(...arr)
     logDebug('found sendmsgbucket', arr)
     for (let item of arrNew) {
-        logDebug('sending message', item)
-        await io.emitWithAck('message', item).then(() => lodash.remove(arrNew, item))
+        if (item.type == 'message') {
+            if (authBearer == '') {
+                await addToRecvQueue({data: 'please set username to send messages using: /name <your-name>', type: 'message', username: 'chatnet'})
+                lodash.remove(arrNew, item)
+                continue
+            }
+
+            logDebug('sending message', item)
+            delete item.username
+            item.auth = authBearer
+            await io.emitWithAck('message', item)
+            lodash.remove(arrNew, item)
+        }
     }
     await ipcExec(() => ipcPut('sendmsgbucket', arrNew))
 }
 
 // code below are mostly utils
 
+async function configGet(key:string) {
+    const json = await fs.readJson(CONFIGPATH)
+    return json[key]
+}
+
+async function configPut(key:string, val:any) {
+    const json = await fs.readJson(CONFIGPATH)
+    json[key] = val
+    await fs.writeJson(CONFIGPATH, json)
+}
+
+// do not use except as such as: await ipcExec(() => ipcGet(key, val))
 async function ipcGet(key: string) {
     const tryFn = async () => {
         const str = await fs.readFile(IPCPATH, 'utf8')
@@ -78,9 +124,10 @@ async function ipcGet(key: string) {
     return retryableRun(tryFn, catchFn)
 }
 
+// do not use except as such as: await ipcExec(() => ipcPut(key, val))
 async function ipcPut(
     key: string,
-    val: Record<string, any> | Array<any> | string | number
+    val: Record<string, any> | Array<any> | string | number | undefined
 ) {
     const tryFn = async () => {
         const str = await fs.readFile(IPCPATH, 'utf8')
@@ -112,6 +159,7 @@ async function toLoop() {
     let result = true
 	const userstate = await ipcExec(() => ipcGet('userstate'))
 	if (userstate === false) result = false
+
     return result
 }
 
@@ -126,7 +174,7 @@ function getIpcDir() {
     if (process.platform == 'linux') {
         const HOME = process.env.HOME
         assert(HOME !== undefined)
-        p = path.join(HOME, '.config', 'chatnet-client')
+        p = path.join(HOME, '.config', '.chatnet-client')
     }
     return p
 }
@@ -185,4 +233,5 @@ async function retryableRun(tryFn, catchFn: Function = () => {}) {
 
 type IpcMsgBucket = Array<SioMessage>
 type SioMessage = { type: 'message'; username: string; data: any}
+type SioMessageSend = {type:string, auth: string, data:any}
 type SioMeta = { type: 'file'; name: string; data: string }
