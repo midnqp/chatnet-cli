@@ -1,7 +1,6 @@
 #include "deps/linenoise/linenoise.h"
 #include <assert.h>
 #include <ctype.h>
-#include <gc.h>
 #include <gc/gc.h>
 #include <json-c/json.h>
 #include <pthread.h>
@@ -30,7 +29,8 @@ void sendbuckets_add(char buffer[], const char *username) {
 	json_object_object_add(obj, "username", json_object_new_string(username));
 	json_object_object_add(obj, "type", json_object_new_string("message"));
 	json_object_object_add(obj, "data", json_object_new_string(strbuffer));
-	logdebug("sendbuckets_add: source object: %s\n", json_object_to_json_string(obj));
+	if (logdebug_if("cclient-sendbucketsadd"))
+		logdebug("sendbuckets_add: the json is %s\n", json_object_to_json_string(obj));
 
 	json_object *bucketarr = ipc_get_array("sendmsgbucket");
 	json_object_array_add(bucketarr, obj);
@@ -112,7 +112,6 @@ int main(int argc, char *argv[]) {
 	sc_log_set_thread_name("thread-main");
 	logdebug("hi\n");
 	GC_INIT();
-
 	createnewipc();
 	initnewipc();
 
@@ -133,14 +132,13 @@ int main(int argc, char *argv[]) {
 		bool _break = false;
 		char *username = NULL;
 		char *linenoise_prompt = NULL;
-		// check if username exists in config
+
 		if (config_get_is_key("username")) {
 			username = config_get_string("username");
 		} else {
 			username = strinit(1);
 			strappend(&username, "[name not set]");
 		}
-		// set the prompt
 		linenoise_prompt = strinit(1);
 		strappend(&linenoise_prompt, username);
 		strappend(&linenoise_prompt, ": ");
@@ -164,17 +162,14 @@ int main(int argc, char *argv[]) {
 				perror("select()");
 				exit(1);
 			} else if (retval) {
-				logdebug("receiving input\n");
 				line = linenoiseEditFeed(&ls);
 				if (line != linenoiseEditMore && ls.len > 0) // disallow empty editfeed
 					break;
 			} else {
-				logdebug("checking for any output\n");
 				long nowinms = datenowms();
 				ipc_put_string("lastping-cclient", long_to_string(nowinms));
 				long lastping = strtol(ipc_get_string("lastping-sioclient"), NULL, 10);
-				logdebug("lastpings %s %s %ld\n", long_to_string(nowinms), long_to_string(lastping),
-						 nowinms - lastping);
+
 				char *output = NULL;
 				if ((nowinms - lastping) > 10000) {
 					_break = true;
@@ -218,8 +213,10 @@ int main(int argc, char *argv[]) {
 		} else
 			sendbuckets_add(linenoise_buffer, username);
 
-		if (line != NULL)
+		if (line != NULL) {
 			linenoiseFree(line);
+			line = NULL;
+		}
 
 		if (_break)
 			break;

@@ -26,11 +26,9 @@ status init(char *execname) {
 	char *cmd = strinit(1);
 	if (found_dir) {
 		strappend(&cmd, sioclientpath);
-		logdebug("found %s in same folder %s\n", sioc_name, dir);
 	}
 	else if (found_bin) {
 		strappend(&cmd, sioc_name);
-		logdebug("found %s in system $PATH\n", sioc_name, dir);
 	}
 	else if (!flag_nosioclient) {
 		err.code = 1;
@@ -44,7 +42,6 @@ status init(char *execname) {
 	// launch executable
 	strappend(&cmd, " &");
 	if (!flag_nosioclient) {
-		logdebug("starting sio-client\n");
 		int opened = system(cmd);
 		if (opened == -1) {
 			err.code = 5;

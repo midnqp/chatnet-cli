@@ -37,6 +37,9 @@ static bool f_log_inited = false;
 		sc_log_info(__VA_ARGS__);                                              \
 	} while (0)
 
+
+bool logdebug_if(const char* logflag);
+
 char *long_to_string(long value);
 
 long datenowms();	

@@ -22,17 +22,14 @@ async function main() {
     logDebug('hi')
     setClientAvailable()
 
-    logDebug("listening for 'broadcast'")
     io.on('broadcast', addToRecvQueue)
 
-    logDebug('send-msg-loop starting')
     while (await toLoop()) {
         await checkIfAuthChanged()
         await emitFromSendQueue()
         await sleep(500)
     }
 
-    logDebug('closing socket.io')
     io.close()
     setClientUnavailable()
     logDebug('bye')
@@ -77,7 +74,6 @@ async function emitFromSendQueue() {
     if (!arr.length) return
 
     const arrNew = new Array(...arr)
-    logDebug('found sendmsgbucket', arr)
     for (let item of arrNew) {
         if (item.type == 'message') {
             if (authBearer == '') {
@@ -86,7 +82,6 @@ async function emitFromSendQueue() {
                 continue
             }
 
-            logDebug('sending message', item)
             delete item.username
             item.auth = authBearer
             await io.emitWithAck('message', item)
@@ -113,13 +108,12 @@ async function configPut(key:string, val:any) {
 async function ipcGet(key: string) {
     const tryFn = async () => {
         const str = await fs.readFile(IPCPATH, 'utf8')
-        logDebug(`ipcGet:  key:`, key, `  ipc.json:`, str)
         const json: Record<string, any> = JSON.parse(str)
         let value = json[key]
         if (value === undefined) value = null
         return value
     }
-    const catchFn = e => logDebug('ipcGet: something failed: retry', e)
+    const catchFn = e => logDebugIf('sioclient-ipc') && logDebug('ipcGet: something failed: retry', e)
 
     return retryableRun(tryFn, catchFn)
 }
@@ -131,18 +125,24 @@ async function ipcPut(
 ) {
     const tryFn = async () => {
         const str = await fs.readFile(IPCPATH, 'utf8')
-        logDebug(`ipcPut:  `, key, `  ipc.json:`, str)
         const json: Record<string, any> = JSON.parse(str)
         json[key] = val
         await fs.writeJson(IPCPATH, json)
     }
-    const catchFn = e => logDebug('ipcPut: something failed: retry', e)
+    const catchFn = e => logDebugIf('sioclient-ipc') && logDebug('ipcPut: something failed: retry', e)
 
     return retryableRun(tryFn, catchFn)
 }
 
+function logDebugIf(scope:string):boolean {
+    const scopes = process.env.CHATNET_DEBUG || ''
+    const scopeList = scopes.split(',')
+    if (scopeList.includes(scope)) return true
+    return false
+}
+
 /** runtime debug logs */
-function logDebug(...any) {
+function logDebug(...any):void {
     if (!process.env.CHATNET_DEBUG) return
 
     let result = ''
@@ -200,6 +200,7 @@ function setClientUnavailable() {
     fs.existsSync(CLIENTUPF) && fs.unlinkSync(CLIENTUPF)
 }
 
+// Essential wrapper over ipcGet() and ipcPut()
 async function ipcExec(fn: () => Promise<any>) {
     const tryFn = async () => {
         const existsLock = await fs.exists(IPCLOCKF)
@@ -211,7 +212,7 @@ async function ipcExec(fn: () => Promise<any>) {
             return result
         } else throw Error('database not reachable')
     }
-    const catchFn = () => logDebug(`database is locked, retrying`)
+    const catchFn = () => logDebugIf('sioclient-ipc') && logDebug(`database is locked, retrying`)
 
     return retryableRun(tryFn, catchFn)
 }

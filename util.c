@@ -3,34 +3,93 @@
 #include <json-c/json_types.h>
 #include <stdbool.h>
 #include <sys/stat.h>
+#include <time.h>
 #include <unistd.h>
 #include <uuid/uuid.h>
-#include <time.h>
 
-#include "./deps/sc/sc_log.h"
+#include "deps/sc/sc_log.h"
 #include "ipc.h"
 #include "str.h"
 #include "util.h"
 
+#include "gcmalloc.h"
+
+// set idx_end = -1 to mean the end of string.
+char *crop_string(const char *string, int idx_start, int idx_end) {
+	int i = 0, j = 0, len = strlen(string);
+	if (idx_end == -1)
+		idx_end = len;
+
+	char *result = malloc(sizeof(char) * (len + 1)); // 1 for null
+	for (i = idx_start; string[i] != NULL && i < idx_end; i++) {
+		result[j++] = string[i];
+	}
+	result[j] = '\0';
+	return result;
+}
+
+// requires a null-terminated string.
+char **split_string(const char *string, char delimiter) {
+	int i, num_tokens = 0;
+	for (i = 0; string[i] != NULL; i++) {
+		if (string[i] == delimiter)
+			num_tokens++;
+	}
+
+	char **tokens = malloc(sizeof(char *) * (num_tokens + 2));
+	int begin = 0, t = 0;
+	for (i = 0; string[i] != NULL; i++) {
+		if (string[i] == delimiter) {
+			char *s = crop_string(string, begin, i);
+			// printf("split_string: crop string: %s\n", s);
+			tokens[t++] = s;
+
+			begin = i + 1;
+		}
+	}
+
+	// add the last item after the last delimiter
+	char *s = crop_string(string, begin, -1);
+	// printf("split_string: crop string: %s\n", s);
+	tokens[t++] = s;
+
+	tokens[t] = NULL;
+	return tokens;
+}
+
+bool logdebug_if(const char *logflag) {
+	const char *chatnet_debug = getenv("CHATNET_DEBUG");
+	if (chatnet_debug == NULL)
+		return false;
+	char **splits = split_string(chatnet_debug, ',');
+	for (int i = 0; splits[i] != NULL; i++) {
+		bool matched = strcmp(splits[i], logflag) == 0;
+		if (matched) {
+			return true;
+		}
+	}
+	return false;
+}
+
 char *long_to_string(long value) {
-  // Allocate memory for the string.
-  char *string = strinit(sizeof(char) * 10);
+	// Allocate memory for the string.
+	char *string = strinit(sizeof(char) * 10);
 
-  // Convert the long integer to a string.
-  sprintf(string, "%ld", value);
+	// Convert the long integer to a string.
+	sprintf(string, "%ld", value);
 
-  // Return the string.
-  return string;
+	// Return the string.
+	return string;
 }
 
 // Date.now() of javascript ported to C 😁
 long datenowms() {
- struct timespec currentTime;
-  clock_gettime(CLOCK_REALTIME, &currentTime);
+	struct timespec currentTime;
+	clock_gettime(CLOCK_REALTIME, &currentTime);
 
-  // Print the current time in milliseconds.
-  long millis = currentTime.tv_sec * 1000 + currentTime.tv_nsec / 1000000;
-  return millis;
+	// Print the current time in milliseconds.
+	long millis = currentTime.tv_sec * 1000 + currentTime.tv_nsec / 1000000;
+	return millis;
 }
 
 void log_cleanup() {
@@ -58,9 +117,7 @@ bool cmdexists(char *cmdname) {
 }
 
 /* runs a system cmd and returns output */
-char* system_out(char* cmd) {
-	return NULL;
-}
+char *system_out(char *cmd) { return NULL; }
 
 char *getconfigdir() {
 	char *result = strinit(1);
@@ -70,7 +127,7 @@ char *getconfigdir() {
 }
 
 char *getconfigfile() {
-	char* dir = getconfigdir();
+	char *dir = getconfigdir();
 	strappend(&dir, "/.chatnet.json");
 	return dir;
 }
@@ -135,7 +192,6 @@ void createnewipc() {
 
 	file_write(ipcpath, "{}");
 	file_write(unlockfile, "");
-	logdebug("ipc path %s contains: %s\n", ipcpath, file_read(ipcpath));
 }
 
 char *genusername() {
@@ -152,7 +208,7 @@ void initnewipc() {
 	ipc_put_boolean("userstate", true);
 	ipc_put_array("sendmsgbucket", json_object_new_array());
 	ipc_put_array("recvmsgbucket", json_object_new_array());
-	//ipc_put_string("username", genusername());
+	// ipc_put_string("username", genusername());
 }
 
 char *file_read(const char *filename) {
@@ -181,12 +237,9 @@ void file_write(const char *filename, const char *contents) {
 
 char *print_stacktrace() {
 	void *array[10];
-	char **strings;
-	int size;
 	char *result = strinit(1);
-
-	size = backtrace(array, 10);
-	strings = backtrace_symbols(array, size);
+	int size = backtrace(array, 10);
+	char** strings = backtrace_symbols(array, size);
 	if (strings != NULL)
 		for (int i = 0; i < size; i++) {
 			strappend(&result, strings[i]);
