@@ -109,6 +109,7 @@ void ipc_put_string(const char *key, const char *val) {
 	json_object_object_add(jsono, key, json_object_new_string(val));
 	const char *contents = json_object_to_json_string(jsono);
 	file_write(getipcpath(), contents);
+	logdebug("ipc_put_string: key is %s and val is %s\n", key, val);
 
 	ipc_cleanup(&jsono);
 }

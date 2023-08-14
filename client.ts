@@ -14,7 +14,7 @@ const IPCUNLOCKF = path.join(IPCDIR, 'UNLOCK')
 const IPCLOGF = path.join(IPCDIR, 'log-latest.txt')
 const CLIENTUPF = path.join(IPCDIR, 'CLIENTUP')
 const SERVERURL = 'https://chatnet-server.midnqp.repl.co'
-const io = socketioClient(SERVERURL)
+let io:ReturnType<typeof socketioClient>
 main()
 
 async function main() {
@@ -22,6 +22,8 @@ async function main() {
     logDebug('hi')
     setClientAvailable()
 
+    const auth = await configGet('auth')
+    io = socketioClient(SERVERURL, {auth:{auth}})
     io.on('broadcast', addToRecvQueue)
 
     while (await toLoop()) {
@@ -37,19 +39,19 @@ async function main() {
 
 async function checkIfAuthChanged() {
     const username = await ipcExec(()=>ipcGet('username'))
-    if (username) {
+    if (username !== undefined) {
+        
         const auth = await configGet('auth');
         const {auth:authBearer} = await io.emitWithAck('auth', {auth, type:'auth', data: username})
         if (authBearer == '') {
             // sad :(
             // "he was last seen 24 days ago"
-            await addToRecvQueue({data: 'sorry, someone with this username is already signed up :(', type: 'message', username: 'chatnet'})
-            await ipcPut('username', undefined)
+            await ipcExec(() => ipcPut('username', undefined) )
         }
         else {
             await configPut('auth', authBearer)
             await configPut('username', username)
-            await ipcPut('username', undefined)
+            await ipcExec( () => ipcPut('username', undefined))
         }
     }
 }
@@ -109,9 +111,7 @@ async function ipcGet(key: string) {
     const tryFn = async () => {
         const str = await fs.readFile(IPCPATH, 'utf8')
         const json: Record<string, any> = JSON.parse(str)
-        let value = json[key]
-        if (value === undefined) value = null
-        return value
+        return json[key]
     }
     const catchFn = e => logDebugIf('sioclient-ipc') && logDebug('ipcGet: something failed: retry', e)
 

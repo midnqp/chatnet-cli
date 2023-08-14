@@ -114,8 +114,9 @@ char* cmark_render_ansi(cmark_node* root) {
 char* markdown_to_ansi(const char* message) {
     cmark_node* doc = cmark_parse_document(message, strlen(message), 0);
     char* _result = cmark_render_ansi(doc);
-    cmark_node_free(doc);
     char* result = strinit(1);
     strappend(&result, _result);
+    cmark_node_free(doc);
+    free(_result);
     return result;
 }

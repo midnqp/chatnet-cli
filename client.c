@@ -15,10 +15,10 @@
 #include "deps/linenoise/linenoise.h"
 #include "deps/sc/sc_log.h"
 #include "ipc.h"
+#include "markdown.h"
 #include "sio-client.h"
 #include "str.h"
 #include "util.h"
-#include "markdown.h"
 
 void sendbuckets_add(char buffer[], const char *username) {
 	char *_buffer = strdup(buffer);
@@ -136,8 +136,7 @@ int main(int argc, char *argv[]) {
 
 		if (ipc_get_is_key("username")) {
 			username = ipc_get_string("username");
-		}
-		else if (config_get_is_key("username")) {
+		} else if (config_get_is_key("username")) {
 			username = config_get_string("username");
 		} else {
 			username = strinit(1);
@@ -185,7 +184,7 @@ int main(int argc, char *argv[]) {
 				if (!strlen(output))
 					continue;
 				linenoiseHide(&ls);
-				char* rendered_output = markdown_to_ansi(output);
+				char *rendered_output = markdown_to_ansi(output);
 				printf("%s\r\n", rendered_output);
 				linenoiseShow(&ls);
 
