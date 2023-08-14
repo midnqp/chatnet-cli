@@ -1,34 +1,18 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <assert.h>
-
-#include "deps/cmark/cmark_ctype.h"
-#include "deps/cmark/config.h"
-#include "deps/cmark/cmark.h"
-#include "deps/cmark/node.h"
-#include "deps/cmark/buffer.h"
-#include "deps/cmark/houdini.h"
-#include "deps/cmark/scanners.h"
+#include "markdown.h"
 
 struct render_state {
   cmark_strbuf *ansi;
   cmark_node *plain;
 };
 
-#define ANSI_RESET "\x1b[0m"
+#define ANSI_RESET "\033[0;0;0m"
 #define ANSI_BOLD "\x1b[1m"
 #define ANSI_ITALIC "\x1b[3m"
 #define ANSI_UNDERLINE "\x1b[4m"
 #define ANSI_REVERSE "\x1b[7m"
-#define ANSI_BLACK "\x1b[30m"
-#define ANSI_RED "\x1b[31m"
-#define ANSI_GREEN "\x1b[32m"
-#define ANSI_YELLOW "\x1b[33m"
+#define ANSI_REVERSE_RESET "\x1b[27m"
+#define ANSI_YELLOW_BG "\x1b[43m"
 #define ANSI_BLUE "\x1b[34m"
-#define ANSI_MAGENTA "\x1b[35m"
-#define ANSI_CYAN "\x1b[36m"
-#define ANSI_WHITE "\x1b[37m"
 
 void escape_ansi(cmark_strbuf *dest, const unsigned char* source, bufsize_t length) {
     cmark_strbuf_puts(dest, source);
@@ -55,7 +39,7 @@ void render_node(cmark_node* node, cmark_event_type ev_type, struct render_state
             
             case CMARK_NODE_LINEBREAK:
             case CMARK_NODE_SOFTBREAK:
-                cmark_strbuf_putc(ansi, ' ');
+                cmark_strbuf_putc(ansi, '\0');
                 break;
             
             default: 
@@ -88,9 +72,22 @@ void render_node(cmark_node* node, cmark_event_type ev_type, struct render_state
                 cmark_strbuf_puts(ansi, ANSI_RESET);
             }
             break;
+
+        case CMARK_NODE_CODE:
+            if (entering) {
+                cmark_strbuf_puts(ansi, ANSI_YELLOW_BG);
+                cmark_strbuf_puts(ansi, cmark_node_get_literal(node));
+                cmark_strbuf_puts(ansi, ANSI_RESET);
+            }
+            break;
+
+        case CMARK_NODE_SOFTBREAK:
+        case CMARK_NODE_LINEBREAK:
+            cmark_strbuf_puts(ansi, "\n");
+            break;
         
-        default: 
-        break;
+        default:
+            break;
     }
 }
 
@@ -111,13 +108,21 @@ char* cmark_render_ansi(cmark_node* root) {
     return result;
 }
 
+char* markdown_to_ansi(const char* message) {
+    cmark_node *doc = cmark_parse_document(message, strlen(message), 0);
+    char* result = strinit(1); 
+    strappend(&result, cmark_render_ansi(doc));
+    cmark_node_free(doc);
+    return result;
+}
 
-int main() {
-    const char* string = "**Hello**, _world_! What is [up](https://github.com)?";
-    printf("%s\n\n", string);
+/*int main() {
+    const char* string = "**Hello**, _world_! What is [up](https://github.com)? \r\n"
+    "You `console.log(123)` yet?";
+    printf("[MARKDOWN]\n%s\n\n", string);
     cmark_node* doc = cmark_parse_document(string, strlen(string), 0);
     char* result = cmark_render_ansi(doc);
-    printf("%s\n", result);
+    printf("[ANSI]\n%s\n", result);
     cmark_node_free(doc);
     free(result);
-}
+}*/

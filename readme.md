@@ -11,7 +11,7 @@ There's been always an effort in this project to not use [ncurses](https://invis
 ### Build
 Pretty straightforward. Make sure to have CMake and dev deps installed.
 ```sh
-sudo apt install libjson-c-dev uuid-dev libgc-dev
+sudo apt install libjson-c-dev uuid-dev libgc-dev libcmark-dev
 npm install
 mkdir dist
 npm run build:bin

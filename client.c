@@ -18,6 +18,7 @@
 #include "sio-client.h"
 #include "str.h"
 #include "util.h"
+#include "markdown.h"
 
 void sendbuckets_add(char buffer[], const char *username) {
 	char *_buffer = strdup(buffer);
@@ -181,7 +182,7 @@ int main(int argc, char *argv[]) {
 				if (!strlen(output))
 					continue;
 				linenoiseHide(&ls);
-				printf("%s", output);
+				printf("%s", markdown_to_ansi(output));
 				linenoiseShow(&ls);
 
 				if (_break)
