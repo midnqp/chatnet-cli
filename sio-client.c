@@ -4,7 +4,7 @@
 #include "ipc.h"
 #include "util.h"
 
-char *sioc_name = "chatnet-sio-client";
+static char sioc_name[] = "chatnet-sio-client";
 
 status init(char *execname) {
 	status err;

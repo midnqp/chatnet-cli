@@ -134,7 +134,10 @@ int main(int argc, char *argv[]) {
 		char *username = NULL;
 		char *linenoise_prompt = NULL;
 
-		if (config_get_is_key("username")) {
+		if (ipc_get_is_key("username")) {
+			username = ipc_get_string("username");
+		}
+		else if (config_get_is_key("username")) {
 			username = config_get_string("username");
 		} else {
 			username = strinit(1);
@@ -175,14 +178,15 @@ int main(int argc, char *argv[]) {
 				if ((nowinms - lastping) > 10000) {
 					_break = true;
 					output = strinit(1);
-					strappend(&output, "chatnet: terminating, something went awry :(\n");
+					strappend(&output, "chatnet: terminating, something went awry :(\r\n");
 				} else {
 					output = recvbucket_get();
 				}
 				if (!strlen(output))
 					continue;
 				linenoiseHide(&ls);
-				printf("%s", markdown_to_ansi(output));
+				char* rendered_output = markdown_to_ansi(output);
+				printf("%s\r\n", rendered_output);
 				linenoiseShow(&ls);
 
 				if (_break)

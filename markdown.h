@@ -6,9 +6,9 @@
 #include <string.h>
 #include <assert.h>
 
+#include "deps/cmark/cmark.h"
 #include "deps/cmark/cmark_ctype.h"
 #include "deps/cmark/config.h"
-#include "deps/cmark/cmark.h"
 #include "deps/cmark/node.h"
 #include "deps/cmark/buffer.h"
 #include "deps/cmark/houdini.h"

@@ -9,7 +9,7 @@ IF(CMAKE_BUILD_TYPE STREQUAL "Release")
 MESSAGE("building release binary")
 ELSE()
 MESSAGE("building debug binary")
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0 -g -Wall -Wextra -fsanitize=address")
+SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror=implicit-function-declaration -O0 -g -Wall -Wextra -fsanitize=address")
 SET(BUILD_SHARED_LIBS ON)
 ENDIF()
 
@@ -26,8 +26,6 @@ ADD_LIBRARY(markdown OBJECT ./markdown.c)
 ADD_LIBRARY(linenoise OBJECT ./deps/linenoise/linenoise.c)
 ADD_LIBRARY(sc OBJECT ./deps/sc/sc_log.c)
 
-#SET(libraries util string sioclient db linenoise sc)
-#SET(deps linenoise sc)
 ADD_LIBRARY(libraries SHARED $<TARGET_OBJECTS:util>
 						   $<TARGET_OBJECTS:string>
 						   $<TARGET_OBJECTS:sioclient>
@@ -41,6 +39,6 @@ ADD_LIBRARY(libraries STATIC ./util.c ./str.c ./sio-client.c ./ipc.c ./markdown.
 ADD_LIBRARY(deps STATIC ./deps/linenoise/linenoise.c ./deps/sc/sc_log.c)
 ENDIF()
 
-SET(downloaded-deps json-c uuid gc cmark)
+SET(downloaded-deps json-c uuid gc)
 ADD_EXECUTABLE(chatnet client.c)
-TARGET_LINK_LIBRARIES(chatnet ${buildopts} libraries deps ${downloaded-deps})
+TARGET_LINK_LIBRARIES(chatnet ${buildopts} libraries deps ${downloaded-deps} ${CMAKE_CURRENT_SOURCE_DIR}/lib/libcmark.a)

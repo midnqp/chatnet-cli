@@ -1,5 +1,8 @@
 #include "markdown.h"
 
+#include "str.h"
+#include "util.h"
+
 struct render_state {
   cmark_strbuf *ansi;
   cmark_node *plain;
@@ -109,20 +112,10 @@ char* cmark_render_ansi(cmark_node* root) {
 }
 
 char* markdown_to_ansi(const char* message) {
-    cmark_node *doc = cmark_parse_document(message, strlen(message), 0);
-    char* result = strinit(1); 
-    strappend(&result, cmark_render_ansi(doc));
+    cmark_node* doc = cmark_parse_document(message, strlen(message), 0);
+    char* _result = cmark_render_ansi(doc);
     cmark_node_free(doc);
+    char* result = strinit(1);
+    strappend(&result, _result);
     return result;
 }
-
-/*int main() {
-    const char* string = "**Hello**, _world_! What is [up](https://github.com)? \r\n"
-    "You `console.log(123)` yet?";
-    printf("[MARKDOWN]\n%s\n\n", string);
-    cmark_node* doc = cmark_parse_document(string, strlen(string), 0);
-    char* result = cmark_render_ansi(doc);
-    printf("[ANSI]\n%s\n", result);
-    cmark_node_free(doc);
-    free(result);
-}*/
