@@ -1095,7 +1095,7 @@ char *linenoiseEditFeed(struct linenoiseState *l) {
 void linenoiseEditStop(struct linenoiseState *l) {
     if (!isatty(l->ifd)) return;
     disableRawMode(l->ifd);
-    printf("\n");
+    // printf("\n"); // midnqp: for recvbucket and markdown support 
 }
 
 /* This just implements a blocking loop for the multiplexed API.

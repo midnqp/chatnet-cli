@@ -14,7 +14,8 @@ const IPCUNLOCKF = path.join(IPCDIR, 'UNLOCK')
 const IPCLOGF = path.join(IPCDIR, 'log-latest.txt')
 const CLIENTUPF = path.join(IPCDIR, 'CLIENTUP')
 const SERVERURL = 'https://chatnet-server.midnqp.repl.co'
-let io:ReturnType<typeof socketioClient>
+let LAST_DEAD_PROBE = 0
+let io: ReturnType<typeof socketioClient>
 main()
 
 async function main() {
@@ -23,13 +24,13 @@ async function main() {
     setClientAvailable()
 
     const auth = await configGet('auth')
-    io = socketioClient(SERVERURL, {auth:{auth}})
+    io = socketioClient(SERVERURL, { auth: { auth } })
     io.on('broadcast', addToRecvQueue)
 
     while (await toLoop()) {
         await checkIfAuthChanged()
         await emitFromSendQueue()
-        await sleep(500)
+        await sleep(100)
     }
 
     io.close()
@@ -38,20 +39,20 @@ async function main() {
 }
 
 async function checkIfAuthChanged() {
-    const username = await ipcExec(()=>ipcGet('username'))
+    const username = await ipcExec(() => ipcGet('username'))
     if (username !== undefined) {
-        
+
         const auth = await configGet('auth');
-        const {auth:authBearer} = await io.emitWithAck('auth', {auth, type:'auth', data: username})
+        const { auth: authBearer } = await io.emitWithAck('auth', { auth, type: 'auth', data: username })
         if (authBearer == '') {
             // sad :(
             // "he was last seen 24 days ago"
-            await ipcExec(() => ipcPut('username', undefined) )
+            await ipcExec(() => ipcPut('username', undefined))
         }
         else {
             await configPut('auth', authBearer)
             await configPut('username', username)
-            await ipcExec( () => ipcPut('username', undefined))
+            await ipcExec(() => ipcPut('username', undefined))
         }
     }
 }
@@ -79,7 +80,7 @@ async function emitFromSendQueue() {
     for (let item of arrNew) {
         if (item.type == 'message') {
             if (authBearer == '') {
-                await addToRecvQueue({data: 'please set username to send messages using: /name <your-name>', type: 'message', username: 'chatnet'})
+                await addToRecvQueue({ data: 'please set username to send messages using: /name <your-name>', type: 'message', username: 'chatnet' })
                 lodash.remove(arrNew, item)
                 continue
             }
@@ -95,12 +96,12 @@ async function emitFromSendQueue() {
 
 // code below are mostly utils
 
-async function configGet(key:string) {
+async function configGet(key: string) {
     const json = await fs.readJson(CONFIGPATH)
     return json[key]
 }
 
-async function configPut(key:string, val:any) {
+async function configPut(key: string, val: any) {
     const json = await fs.readJson(CONFIGPATH)
     json[key] = val
     await fs.writeJson(CONFIGPATH, json)
@@ -134,7 +135,7 @@ async function ipcPut(
     return retryableRun(tryFn, catchFn)
 }
 
-function logDebugIf(scope:string):boolean {
+function logDebugIf(scope: string): boolean {
     const scopes = process.env.CHATNET_DEBUG || ''
     const scopeList = scopes.split(',')
     if (scopeList.includes(scope)) return true
@@ -142,7 +143,7 @@ function logDebugIf(scope:string):boolean {
 }
 
 /** runtime debug logs */
-function logDebug(...any):void {
+function logDebug(...any): void {
     if (!process.env.CHATNET_DEBUG) return
 
     let result = ''
@@ -157,13 +158,20 @@ function logDebug(...any):void {
 /** checks if event loop should continue running */
 async function toLoop() {
     let result = true
-	const userstate = await ipcExec(() => ipcGet('userstate'))
-	if (userstate === false) result = false
+    //const userstate = await ipcExec(() => ipcGet('userstate'))
+    //if (userstate === false) result = false
 
     const now = Date.now()
-    await ipcExec(()=>ipcPut('lastping-sioclient', String(Date.now())))
-    const lastping = parseInt(await ipcExec(() => ipcGet('lastping-cclient')))
-    if ((now-lastping) > 10e3) result = false // cclient is probably dead 💀
+    if ((now - LAST_DEAD_PROBE) > 5000) {
+        await ipcExec(() => ipcPut('lastping-sioclient', String(Date.now())))
+        const lastPingCclient:string|undefined = await ipcExec(() => ipcGet('lastping-cclient'))
+
+        if (lastPingCclient?.length) {
+            const lastping = parseInt(lastPingCclient)
+            if ((now - lastping) > 15e3) result = false // cclient is probably dead 💀
+            LAST_DEAD_PROBE = now
+        }
+    }
 
     return result
 }
@@ -222,7 +230,7 @@ async function ipcExec(fn: () => Promise<any>) {
  * every 50ms on failure, throws
  * error in case of timeout
  */
-async function retryableRun(tryFn, catchFn: Function = () => {}) {
+async function retryableRun(tryFn, catchFn: Function = () => { }) {
     let n = 0
     const maxN = IPCTIMEOUT
     while (true) {
@@ -238,6 +246,6 @@ async function retryableRun(tryFn, catchFn: Function = () => {}) {
 }
 
 type IpcMsgBucket = Array<SioMessage>
-type SioMessage = { type: 'message'; username: string; data: any}
-type SioMessageSend = {type:string, auth: string, data:any}
+type SioMessage = { type: 'message'; username: string; data: any }
+type SioMessageSend = { type: string, auth: string, data: any }
 type SioMeta = { type: 'file'; name: string; data: string }

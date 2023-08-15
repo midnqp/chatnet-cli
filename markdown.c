@@ -42,7 +42,7 @@ void render_node(cmark_node* node, cmark_event_type ev_type, struct render_state
             
             case CMARK_NODE_LINEBREAK:
             case CMARK_NODE_SOFTBREAK:
-                cmark_strbuf_putc(ansi, '\0');
+                cmark_strbuf_putc(ansi, ' ');
                 break;
             
             default: 
@@ -86,7 +86,7 @@ void render_node(cmark_node* node, cmark_event_type ev_type, struct render_state
 
         case CMARK_NODE_SOFTBREAK:
         case CMARK_NODE_LINEBREAK:
-            cmark_strbuf_puts(ansi, "\n");
+            cmark_strbuf_puts(ansi, "\r\n");
             break;
         
         default:

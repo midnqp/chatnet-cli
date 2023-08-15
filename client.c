@@ -38,6 +38,25 @@ void sendbuckets_add(char buffer[], const char *username) {
 	ipc_put_array("sendmsgbucket", bucketarr);
 }
 
+void recvbuckets_add(char buffer[], const char *username) {
+	char *_buffer = strdup(buffer);
+	char *strbuffer = strinit(1);
+	strappend(&strbuffer, _buffer);
+	free(_buffer);
+
+	json_object *obj = json_object_new_object();
+	json_object_object_add(obj, "username", json_object_new_string(username));
+	json_object_object_add(obj, "type", json_object_new_string("message"));
+	json_object_object_add(obj, "data", json_object_new_string(strbuffer));
+
+	json_object *bucketarr = ipc_get_array("recvmsgbucket");
+	json_object_array_add(bucketarr, obj);
+	ipc_put_array("recvmsgbucket", bucketarr);
+}
+
+// Up until now, none of the messages had any line endings.
+// No line-endings from chatnet-server. No line-endings from linenoise.
+// Recvbucket_get() adds line-endings between messages! \r\n
 char *recvbucket_get() {
 	char *result = strinit(1);
 	json_object *recvarr = ipc_get_array("recvmsgbucket");
@@ -133,6 +152,7 @@ int main(int argc, char *argv[]) {
 		bool _break = false;
 		char *username = NULL;
 		char *linenoise_prompt = NULL;
+		long last_dead_probe = 0;
 
 		if (ipc_get_is_key("username")) {
 			username = ipc_get_string("username");
@@ -150,6 +170,7 @@ int main(int argc, char *argv[]) {
 		struct linenoiseState ls;
 		char buf[10240];
 		linenoiseEditStart(&ls, -1, -1, buf, sizeof(buf), linenoise_prompt);
+
 		while (1) {
 			fd_set readfds;
 			struct timeval tv;
@@ -158,7 +179,7 @@ int main(int argc, char *argv[]) {
 			FD_ZERO(&readfds);
 			FD_SET(ls.ifd, &readfds);
 			tv.tv_sec = 0;
-			tv.tv_usec = 1000 * 500; // 500ms
+			tv.tv_usec = 1000 * 100; // 100ms
 
 			retval = select(ls.ifd + 1, &readfds, NULL, NULL, &tv);
 			if (retval == -1) {
@@ -169,23 +190,33 @@ int main(int argc, char *argv[]) {
 				if (line != linenoiseEditMore && ls.len > 0) // disallow empty editfeed
 					break;
 			} else {
-				long nowinms = datenowms();
-				ipc_put_string("lastping-cclient", long_to_string(nowinms));
-				long lastping = strtol(ipc_get_string("lastping-sioclient"), NULL, 10);
-
 				char *output = NULL;
-				if ((nowinms - lastping) > 10000) {
-					_break = true;
-					output = strinit(1);
-					strappend(&output, "chatnet: terminating, something went awry :(\r\n");
-				} else {
-					output = recvbucket_get();
+
+				// check whether sioclient died 💀
+				long nowinms = datenowms();
+				if ((nowinms - last_dead_probe) > 5000) {
+					ipc_put_string("lastping-cclient", long_to_string(nowinms));
+
+					if (ipc_get_is_key("lastping-sioclient")) {
+						long lastping = strtol(ipc_get_string("lastping-sioclient"), NULL, 10);
+
+						if ((nowinms - lastping) > 15000) { // 15 sec, death confirmed ☠
+							_break = true;
+							output = strinit(1);
+							strappend(&output, "chatnet: terminating, something went awry :(\r\n");
+						}
+						last_dead_probe = nowinms;
+					}
 				}
+
+				if (!_break)
+					output = recvbucket_get();
 				if (!strlen(output))
 					continue;
 				linenoiseHide(&ls);
 				char *rendered_output = markdown_to_ansi(output);
-				printf("%s\r\n", rendered_output);
+				printf("%s\r\n", rendered_output); // for some reason, the last \r\n is being ommitted ¯\_(ツ)_/¯
+				fflush(stdout);
 				linenoiseShow(&ls);
 
 				if (_break)
@@ -193,13 +224,14 @@ int main(int argc, char *argv[]) {
 			}
 		}
 
+		linenoiseHide(&ls); // midnqp: hiding current buffer because this will go through recvbucket
 		linenoiseEditStop(&ls);
 
 		char *linenoise_buffer = buf;
+
 		if (strcmp(linenoise_buffer, "/exit") == 0) {
-			ipc_put_boolean("userstate", false);
+			// ipc_put_boolean("userstate", false);
 			_break = true;
-			// break; because `char* line` needs to be freed
 		} else if (strncmp(linenoise_buffer, "/name", 5) == 0) {
 			char *uname = strinit(16 + 1);
 			int a;
@@ -214,8 +246,10 @@ int main(int argc, char *argv[]) {
 
 			// this gets noticed by checkIfAuthChanged() in client.ts
 			ipc_put_string("username", uname);
-		} else
+		} else {
 			sendbuckets_add(linenoise_buffer, username);
+			recvbuckets_add(linenoise_buffer, username); // midnqp: for markdown!
+		}
 
 		if (line != NULL) {
 			linenoiseFree(line);
