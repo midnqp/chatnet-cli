@@ -1,5 +1,5 @@
 import assert from 'node:assert'
-import { inspect } from 'node:util'
+import { inspect, promisify } from 'node:util'
 import path from 'node:path'
 import socketioClient from 'socket.io-client'
 import fs from 'fs-extra'
@@ -81,6 +81,8 @@ async function main() {
         logDebug('bye ' + '-'.repeat(30))
     } catch (err) {
         logDebug('fatal crash at main() ' + '-'.repeat(30), err)
+        logDebug('bye, force quiting')
+        process.exit()
     }
 }
 
@@ -100,6 +102,7 @@ async function checkVoiceMessage() {
     if (MICROPHONEFILENAME === undefined) MICROPHONEFILENAME = '/tmp/' + randomUUID() + ".wav"
     if (MICROPHONEFILE === undefined) MICROPHONEFILE = fs.createWriteStream(MICROPHONEFILENAME, { encoding: 'binary' })
 
+    logDebug("mic requested to be "+microphoneState)
     switch (microphoneState) {
         case 'on':
             if (MICROPHONE === undefined) {
@@ -118,7 +121,8 @@ async function checkVoiceMessage() {
             //const fileClose = promisify(MICROPHONEFILE.close)
             //await fileClose()
             const auth = await configGet('auth');
-            await io.emitWithAck('voicemessage', {
+            logDebug("file closed, microphone stopped, sending voicemessage")
+            io.emitWithAck('voicemessage', { // unawaiting, because it takes too much time!
                 auth,
                 type: 'voicemessage',
                 data: await fs.readFile(MICROPHONEFILENAME, { encoding: 'binary' })
@@ -126,14 +130,15 @@ async function checkVoiceMessage() {
             await fs.truncate(MICROPHONEFILENAME, 0)
             MICROPHONE = undefined
             MICROPHONEFILE = undefined
-            MICROPHONEFILE = undefined
+            MICROPHONEFILENAME = undefined
+            logDebug("delivered voicemessage, truncated, and all set to undefined")
             break
         case 'cancel':
             MICROPHONE.stop()
             await fs.truncate(MICROPHONEFILENAME, 0)
             MICROPHONE = undefined
             MICROPHONEFILE = undefined
-            MICROPHONEFILE = undefined
+            MICROPHONEFILENAME = undefined
             break
         default:
             addToRecvQueue({ username: 'chatnet', data: 'a value value is one of: **on**, **pause**, **resume**, **done**, **cancel**', type: 'message' })
@@ -271,13 +276,16 @@ async function toLoop() {
     await ipcExec(() => ipcPut('lastping-sioclient', String(Date.now())))
     const lastPingCclient: string | undefined = await ipcExec(() => ipcGet('lastping-cclient'))
 
+    let lastpingAgo = -1
     if (lastPingCclient?.length) {
         const lastping = parseInt(lastPingCclient)
-        if ((now - lastping) > 3000) result = false // cclient is probably dead 💀
+        lastpingAgo = (now - lastping)
+        if (lastpingAgo > 3000) result = false // cclient is probably dead 💀
         LAST_DEAD_PROBE = now
     }
     // }
 
+    logDebug(`toLoop, result is ${result} and lastPingCclient was ${lastpingAgo}ms ago`)
     return result
 }
 
