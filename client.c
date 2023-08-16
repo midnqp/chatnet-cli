@@ -68,9 +68,19 @@ int array_sort_fn(const void* j1, const void* j2) {
 
 	json_object* j1createdat = json_object_object_get(*jso1, "createdAt");
 	json_object* j2createdat = json_object_object_get(*jso2, "createdAt");
-	uint64_t i1 = json_object_get_uint64(j1createdat);
-	uint64_t i2 = json_object_get_uint64(j2createdat);
-	return i1-i2;
+
+	const char* createdat1 = json_object_get_string(j1createdat);
+	const char* createdat2 = json_object_get_string(j2createdat);
+	if (createdat1 == NULL && createdat2 == NULL) return 0;
+	if (createdat1 == NULL) return -1;
+	if (createdat2 == NULL) return 1;
+
+	if (logdebug_if("cclient-recvbucket")) {
+		logdebug("createdAt1 is %s and createdAt2 is %s\n", createdat1, createdat2);
+	}	
+	int result = (int)strtol(createdat1, NULL, 10) - strtol(createdat2, NULL, 10);
+
+	return result;
 }
 
 // Up until now, none of the messages had any line endings.
@@ -80,11 +90,17 @@ char *recvbucket_get() {
 	char *result = strinit(1);
 	json_object *recvarr = ipc_get_array("recvmsgbucket");
 	ipc_put_array("recvmsgbucket", json_object_new_array()); // empty array
+	int arrlen = json_object_array_length(recvarr);
+	if (arrlen == 0) {
+		json_object_put(recvarr);
+		return result;
+	}
 
 	// sort
+	if (logdebug_if("cclient-recvbucket")) logdebug("recvmsgbucket length is %d\n", arrlen);
 	json_object_array_sort(recvarr, *array_sort_fn);
 
-	int arrlen = json_object_array_length(recvarr);
+	// iterate over and create a single string
 	for (int i = 0; i < arrlen; i++) {
 		json_object *item = json_object_array_get_idx(recvarr, i);
 		json_parse_check(item, "");

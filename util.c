@@ -254,6 +254,15 @@ char *print_stacktrace() {
 	return result;
 }
 
+bool is_file_json(const char* filename) {
+	bool result=true;
+	char* contents = file_read(filename);
+	json_object* json = json_tokener_parse(contents);
+	if (json == NULL) result = false;
+	json_object_put(json);
+	return result;
+}
+
 void json_parse_check(json_object *o, const char *str) {
 	if (o != NULL)
 		return;

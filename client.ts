@@ -33,6 +33,15 @@ async function main() {
 
     const auth = await configGet('auth')
     io = socketioClient(SERVERURL, { auth: { auth } })
+    io.on('history', async (msgList: Array<SioMessage>) => {
+        if (msgList.length==0) return
+        logDebug(`received ${msgList} messages as history`)
+        //msgList.forEach(addToRecvQueue)
+        // maybe i need to add those all at once like this!
+        let bucket = await ipcExec(() => ipcGet("recvmsgbucket"))
+        bucket = bucket.concat(msgList)
+        await ipcExec(() => ipcPut("recvmsgbucket", bucket))
+    })
     io.on('broadcast', addToRecvQueue)
     io.on('voicemessage', playVoiceMessage)
 

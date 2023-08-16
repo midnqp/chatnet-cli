@@ -29,7 +29,7 @@ void ipc_init(json_object **jsono) {
 
 			char *dbcontents = file_read(dbpath);
 			*jsono = json_tokener_parse(dbcontents);
-			// json_parse_check(*jsono, dbcontents);
+			//json_parse_check(*jsono, dbcontents);
 
 			if (!strcmp(dbcontents, "")) {
 				if (logdebug_if("cclient-ipcinit"))
@@ -87,6 +87,7 @@ char *ipc_get_string(const char *key) {
 	char *result = strinit(1);
 
 	json_object *value;
+	if (logdebug_if("cclient-ipc")) logdebug("ipc_get_string, key: %s\n", key);
 	bool found = json_object_object_get_ex(jsono, key, &value);
 	assert(found == true);
 	strappend(&result, json_object_get_string(value));

@@ -82,4 +82,6 @@ void json_parse_check(json_object *o, const char *str);
 
 void log_cleanup();
 
+bool is_file_json(const char* filename);
+
 #endif // CHATNET_UTIL_H_

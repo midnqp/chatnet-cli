@@ -4,12 +4,40 @@
 #include "ipc.h"
 #include "util.h"
 
+bool is_already_up() {
+	const int timeout = 3000; // 3 seconds for sioclient to make a noise, otherwise a new sioclient will be instantiated, because we can't go visit RAM.
+	char* ipcpath = getipcpath();
+	bool is_valid = is_file_json(ipcpath);
+	if (!is_valid) return false; // he crashed maybe.
+
+	if (!ipc_get_is_key("lastping-sioclient")) return false; // this key doesn't even exist, meaning nothing even started yet for the first time!!
+
+	int ms=0;
+	long lastpingsioclient = strtol(ipc_get_string("lastping-sioclient"), NULL, 10);
+	while (ms < timeout) {
+		ms+=100;
+		usleep(100*1000); // 100ms
+		
+		long lps = strtol(ipc_get_string("lastping-sioclient"), NULL, 10);
+		if (lps != lastpingsioclient) return true; // found updated lastping, he's alive!
+		lastpingsioclient = lps;
+	}
+	return false; // lastping stayed same, he's dead!
+}
+
 status init(char *execname) {
 	status err;
 	char* thisdir = strinit(1024);
 	realpath(dirname(execname), thisdir);
 	// don't spawn if true
 	bool flag_nosioclient = getenv("CHATNET_NOSIOCLIENT") != NULL;
+
+	bool already_up = is_already_up();
+	logdebug("sioclient is already %s\n", already_up ? "alive":"dead");
+	if (already_up) {
+		err.code =0;
+		return err;
+	}
 
 	// system executable filename
 	char sioc_name[] = "chatnet-sio-client";
@@ -29,11 +57,16 @@ status init(char *execname) {
 	if (cmdexists("node")) {
 		strappend(&nodejs_exe, "node");
 	}
-	else {
+	else if (entexists("./node")) {
 		// the provided prebuilt static nodejs executable
 		strappend(&nodejs_exe, thisdir);
 		strappend(&nodejs_exe, "/");
 		strappend(&nodejs_exe, "node");
+	}
+	else {
+		err.code = 4;
+		sprintf(err.msg, "nodejs executable not found in same folder, or in system $PATH.");
+		return err;
 	}
 
 	bool is_found_jsfile = entexists(jsfile_fullpath);
