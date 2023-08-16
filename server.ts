@@ -1,4 +1,3 @@
-// https://replit.com/@midnqp/chatnet-server
 import { Server } from 'socket.io'
 import http from 'node:http'
 import crypto from 'node:crypto'
@@ -50,17 +49,27 @@ io.on('connection', async socket => {
 
 			if (ua === undefined) { // newly active user
 				userActiveList.push({ uid: AUTHRESULT.id, lastActive: Date.now(), isActive: true })
-				getMessageHistory().then(msgHistory => {
+				/*getMessageHistory().then(msgHistory => {
 					console.log({ msgHistory })
 					socket.emit('history', msgHistory)
-				})
+				})*/
 			}
-			if ((Date.now() - ua?.lastActive) >= min5) { // only give the message history again, if the user was last active in more than 5 minutes
-				getMessageHistory().then(msgHistory => {
-					console.log({ msgHistory })
-					socket.emit('history', msgHistory)
-				})
+			else { // reactivating user, #user-retention
+				ua.isActive = true
+				ua.lastActive = Date.now()
+
+				// only give the message history again, if the user was last active in more than 5 minutes
+				// because, often the users can just get disconnected without any apparent reason - and
+				// connect immediately! ¯\_(ツ)_/¯
+				if ((Date.now() - ua.lastActive) >= min5) {
+					getMessageHistory().then(msgHistory => {
+						console.log({ msgHistory })
+						socket.emit('history', msgHistory)
+					})
+				}
 			}
+
+
 
 
 
@@ -159,6 +168,7 @@ io.on('connection', async socket => {
 				console.log({ msgHistory })
 				socket.emit('history', msgHistory)
 			})
+			await replitDb.set('useractive', userActiveList)
 		}
 		ack({ auth: bearer })
 	})
@@ -273,41 +283,3 @@ async function authCreate({ username }) {
 
 	return bearer
 }
-
-/** 
- * TODO This comes much later, after voice message.
- * @param {express.Express} app 
- * @param {ReplitDbClient} replitDb
- */
-async function setupExpressApis(app, replitDb) {
-	const users = await replitDb.get("users")
-	if (!users) {
-		console.log('replitdb init set: users {}')
-		await replitDb.set("users", {})
-	}
-
-	app.use(cors())
-	app.use(express.json())
-
-	app.get('/voice/peers/:username', async (req, res) => {
-		const { username } = req.params
-
-		const users = await replitDb.get('users')
-		const result = users[username]
-
-		res.json(result)
-	})
-	app.post('/voice/peers/:username', async (req, res) => {
-		const { username } = req.params
-		const { peerId } = req.body
-		const result = { ok: true }
-
-		const users = await replitDb.get('users')
-		if (!users[username]) users[username] = {}
-		users[username]['peerId'] = peerId
-		await replitDb.set('users', users)
-
-		res.json(result)
-	})
-}
-
