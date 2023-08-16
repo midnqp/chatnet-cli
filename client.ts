@@ -18,66 +18,87 @@ const IPCLOGF = path.join(IPCDIR, 'log-latest.txt')
 const CLIENTUPF = path.join(IPCDIR, 'CLIENTUP')
 const SERVERURL = 'https://chatnet-server.midnqp.repl.co'
 let LAST_DEAD_PROBE = 0
-let  MICROPHONEFILENAME
-let  MICROPHONEFILE 
-let  MICROPHONE
+let MICROPHONEFILENAME
+let MICROPHONEFILE
+let MICROPHONE
 const SPEAKER = spawn('sox', ['-t', 'wav', '-'])
 let io: ReturnType<typeof socketioClient>
-main()
+main().catch((reason) => {
+    logDebug('main().catch', reason)
+    logDebug('bye, force quiting')
+    process.exit()
+})
+
+process.on('uncaughtException', (err, origin) => {
+    logDebug("uncaught error", err, origin)
+    logDebug('bye, force quiting')
+    process.exit()
+})
+
+process.on('unhandledRejection', (reason, promise) => {
+    logDebug('uncaught promise rejection', reason, promise)
+    logDebug('bye, force quiting')
+    process.exit()
+})
+
+process.on('uncaughtExceptionMonitor', (err, origin) => {
+    logDebug('uncaught exception monitor', err, origin)
+    logDebug('bye, force quiting')
+    process.exit()})
 
 async function main() {
     try {
-    assert(IPCDIR != '', 'database not found')
-    logDebug('hi')
-    setClientAvailable()
+        assert(IPCDIR != '', 'database not found')
+        logDebug('hi')
+        setClientAvailable()
 
-    const auth = await configGet('auth')
-    io = socketioClient(SERVERURL, { auth: { auth } })
-    io.on('history', async (msgList: Array<SioMessage>) => {
-        if (msgList.length==0) return
-        logDebug(`received ${msgList} messages as history`)
-        //msgList.forEach(addToRecvQueue)
-        // maybe i need to add those all at once like this!
-        let bucket = await ipcExec(() => ipcGet("recvmsgbucket"))
-        bucket = bucket.concat(msgList)
-        await ipcExec(() => ipcPut("recvmsgbucket", bucket))
-    })
-    io.on('broadcast', addToRecvQueue)
-    io.on('voicemessage', playVoiceMessage)
+        const auth = await configGet('auth')
+        io = socketioClient(SERVERURL, { auth: { auth } })
+        io.on('history', async (msgList: Array<SioMessage>) => {
+            if (msgList.length == 0) return
+            logDebug(`received ${msgList} messages as history`)
+            //msgList.forEach(addToRecvQueue)
+            // maybe i need to add those all at once like this!
+            let bucket = await ipcExec(() => ipcGet("recvmsgbucket"))
+            bucket = bucket.concat(msgList)
+            await ipcExec(() => ipcPut("recvmsgbucket", bucket))
+        })
+        io.on('broadcast', addToRecvQueue)
+        io.on('voicemessage', playVoiceMessage)
 
-    while (await toLoop()) {
-        await checkIfAuthChanged()
-        await checkVoiceMessage()
-        await emitFromSendQueue()
-        await sleep(100)
+        while (await toLoop()) {
+            await checkIfAuthChanged()
+            await checkVoiceMessage()
+            await emitFromSendQueue()
+            await sleep(100)
+        }
+
+        io.close()
+        if (MICROPHONE !== undefined) MICROPHONE.stop()
+        if (MICROPHONEFILE !== undefined) MICROPHONEFILE.close()
+        if (!SPEAKER.killed) SPEAKER.kill()
+        setClientUnavailable()
+        logDebug('bye ' + '-'.repeat(30))
+    } catch (err) {
+        logDebug('fatal crash at main() ' + '-'.repeat(30), err)
     }
-
-    io.close()
-    if (MICROPHONE !== undefined) MICROPHONE.stop()
-    if (MICROPHONEFILE !== undefined) MICROPHONEFILE.close()
-    if (!SPEAKER.killed) SPEAKER.kill()
-    setClientUnavailable()
-    logDebug('bye '+'-'.repeat(30))
-} catch(err) {
-    logDebug('fatal crash at main() '+'-'.repeat(30))
-}
 }
 
 async function playVoiceMessage(msg) {
     const filename = '/tmp/chatnet-audio-received.wav'
-    await addToRecvQueue({data: '🎶 this was a voice message', username: msg.username, type: 'message'})
-    await fs.writeFile(filename, msg.data, {encoding: 'binary'})
+    await addToRecvQueue({ data: '🎶 this was a voice message', username: msg.username, type: 'message' })
+    await fs.writeFile(filename, msg.data, { encoding: 'binary' })
     spawn('play', [filename])
     // const readStream= fs.createReadStream('/tmp/chatnet-audio-received.wav', {encoding: 'binary'})
-   // readStream.pipe(SPEAKER.stdin)
+    // readStream.pipe(SPEAKER.stdin)
 }
 
 async function checkVoiceMessage() {
     const microphoneState = await ipcExec(() => ipcGet('voiceMessage'))
     if (!microphoneState) return
 
-    if (MICROPHONEFILENAME === undefined) MICROPHONEFILENAME = '/tmp/' + randomUUID()+".wav"
-    if (MICROPHONEFILE === undefined) MICROPHONEFILE = fs.createWriteStream(MICROPHONEFILENAME, {encoding: 'binary'})
+    if (MICROPHONEFILENAME === undefined) MICROPHONEFILENAME = '/tmp/' + randomUUID() + ".wav"
+    if (MICROPHONEFILE === undefined) MICROPHONEFILE = fs.createWriteStream(MICROPHONEFILENAME, { encoding: 'binary' })
 
     switch (microphoneState) {
         case 'on':
@@ -98,9 +119,9 @@ async function checkVoiceMessage() {
             //await fileClose()
             const auth = await configGet('auth');
             await io.emitWithAck('voicemessage', {
-                auth, 
-                type:'voicemessage', 
-                data:await fs.readFile(MICROPHONEFILENAME, {encoding:'binary'})
+                auth,
+                type: 'voicemessage',
+                data: await fs.readFile(MICROPHONEFILENAME, { encoding: 'binary' })
             })
             await fs.truncate(MICROPHONEFILENAME, 0)
             MICROPHONE = undefined
@@ -115,10 +136,10 @@ async function checkVoiceMessage() {
             MICROPHONEFILE = undefined
             break
         default:
-            addToRecvQueue({username: 'chatnet', data: 'a value value is one of: **on**, **pause**, **resume**, **done**, **cancel**', type: 'message'})
+            addToRecvQueue({ username: 'chatnet', data: 'a value value is one of: **on**, **pause**, **resume**, **done**, **cancel**', type: 'message' })
             break
     }
-    
+
     await ipcExec(() => ipcPut('voiceMessage', undefined))
 }
 
@@ -235,7 +256,7 @@ function logDebug(...any): void {
     if (any.length) result.slice(0, result.length - 1)
 
     const d = new Date().toISOString()
-    const str = '[sio-client]  ' + d + '  ' + result + '\n'
+    const str = '[sio-client '+process.pid+']  ' + d + '  ' + result + '\n'
     fs.appendFileSync(IPCLOGF, str)
 }
 
@@ -246,16 +267,16 @@ async function toLoop() {
     //if (userstate === false) result = false
 
     const now = Date.now()
-   // if ((now - LAST_DEAD_PROBE) > 0) {
-        await ipcExec(() => ipcPut('lastping-sioclient', String(Date.now())))
-        const lastPingCclient:string|undefined = await ipcExec(() => ipcGet('lastping-cclient'))
+    // if ((now - LAST_DEAD_PROBE) > 0) {
+    await ipcExec(() => ipcPut('lastping-sioclient', String(Date.now())))
+    const lastPingCclient: string | undefined = await ipcExec(() => ipcGet('lastping-cclient'))
 
-        if (lastPingCclient?.length) {
-            const lastping = parseInt(lastPingCclient)
-            if ((now - lastping) > 3000) result = false // cclient is probably dead 💀
-            LAST_DEAD_PROBE = now
-        }
-   // }
+    if (lastPingCclient?.length) {
+        const lastping = parseInt(lastPingCclient)
+        if ((now - lastping) > 3000) result = false // cclient is probably dead 💀
+        LAST_DEAD_PROBE = now
+    }
+    // }
 
     return result
 }
