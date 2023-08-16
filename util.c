@@ -6,13 +6,14 @@
 #include <time.h>
 #include <unistd.h>
 #include <uuid/uuid.h>
+#include <gc/gc.h>
 
 #include "deps/sc/sc_log.h"
 #include "ipc.h"
 #include "str.h"
 #include "util.h"
 
-#include "gcmalloc.h"
+//#include "gcmalloc.h"
 
 // set idx_end = -1 to mean the end of string.
 char *crop_string(const char *string, int idx_start, int idx_end) {
@@ -20,9 +21,11 @@ char *crop_string(const char *string, int idx_start, int idx_end) {
 	if (idx_end == -1)
 		idx_end = len;
 
-	char *result = malloc(sizeof(char) * (len + 1)); // 1 for null
+	//char *result = malloc(sizeof(char) * (len + 1)); // 1 for null
+	char* result = strinit(len+1);
 	for (i = idx_start; string[i] != NULL && i < idx_end; i++) {
 		result[j++] = string[i];
+		//strappend(&result, string[i]);
 	}
 	result[j] = '\0';
 	return result;
@@ -36,7 +39,7 @@ char **split_string(const char *string, char delimiter) {
 			num_tokens++;
 	}
 
-	char **tokens = malloc(sizeof(char *) * (num_tokens + 2));
+	char **tokens = GC_malloc(sizeof(char *) * (num_tokens + 2));
 	int begin = 0, t = 0;
 	for (i = 0; string[i] != NULL; i++) {
 		if (string[i] == delimiter) {
@@ -239,13 +242,14 @@ char *print_stacktrace() {
 	void *array[10];
 	char *result = strinit(1);
 	int size = backtrace(array, 10);
-	char** strings = backtrace_symbols(array, size);
-	if (strings != NULL)
+	char **strings = backtrace_symbols(array, size);
+	if (strings != NULL) {
 		for (int i = 0; i < size; i++) {
 			strappend(&result, strings[i]);
-			strappend(&result, "\n");
+			strappend(&result, "\r\n");
 		}
-	free(strings);
+		free(strings);
+	}
 
 	return result;
 }
@@ -253,7 +257,7 @@ char *print_stacktrace() {
 void json_parse_check(json_object *o, const char *str) {
 	if (o != NULL)
 		return;
-	sc_log_error("json parse failed for string:\n%s", str);
+	sc_log_error("json parse failed for string:\n%s\n", str);
 	logdebug("stack trace:\n%s\n", print_stacktrace());
 	exit(4);
 }

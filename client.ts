@@ -4,6 +4,9 @@ import path from 'node:path'
 import socketioClient from 'socket.io-client'
 import fs from 'fs-extra'
 import lodash from 'lodash'
+import recorder from 'node-record-lpcm16'
+import { randomUUID } from 'node:crypto'
+import { spawn } from 'node:child_process'
 
 const IPCTIMEOUT = 15000 as const // 15 sec
 const IPCDIR = getIpcDir()
@@ -15,10 +18,15 @@ const IPCLOGF = path.join(IPCDIR, 'log-latest.txt')
 const CLIENTUPF = path.join(IPCDIR, 'CLIENTUP')
 const SERVERURL = 'https://chatnet-server.midnqp.repl.co'
 let LAST_DEAD_PROBE = 0
+let  MICROPHONEFILENAME
+let  MICROPHONEFILE 
+let  MICROPHONE
+const SPEAKER = spawn('sox', ['-t', 'wav', '-'])
 let io: ReturnType<typeof socketioClient>
 main()
 
 async function main() {
+    try {
     assert(IPCDIR != '', 'database not found')
     logDebug('hi')
     setClientAvailable()
@@ -26,16 +34,83 @@ async function main() {
     const auth = await configGet('auth')
     io = socketioClient(SERVERURL, { auth: { auth } })
     io.on('broadcast', addToRecvQueue)
+    io.on('voicemessage', playVoiceMessage)
 
     while (await toLoop()) {
         await checkIfAuthChanged()
+        await checkVoiceMessage()
         await emitFromSendQueue()
         await sleep(100)
     }
 
     io.close()
+    if (MICROPHONE !== undefined) MICROPHONE.stop()
+    if (MICROPHONEFILE !== undefined) MICROPHONEFILE.close()
+    if (!SPEAKER.killed) SPEAKER.kill()
     setClientUnavailable()
-    logDebug('bye')
+    logDebug('bye '+'-'.repeat(30))
+} catch(err) {
+    logDebug('fatal crash at main() '+'-'.repeat(30))
+}
+}
+
+async function playVoiceMessage(msg) {
+    const filename = '/tmp/chatnet-audio-received.wav'
+    await addToRecvQueue({data: '🎵 playing voice 🎶', username: msg.username, type: 'message'})
+    await fs.writeFile(filename, msg.data, {encoding: 'binary'})
+    spawn('play', [filename])
+    // const readStream= fs.createReadStream('/tmp/chatnet-audio-received.wav', {encoding: 'binary'})
+   // readStream.pipe(SPEAKER.stdin)
+}
+
+async function checkVoiceMessage() {
+    const microphoneState = await ipcExec(() => ipcGet('voiceMessage'))
+    if (!microphoneState) return
+
+    if (MICROPHONEFILENAME === undefined) MICROPHONEFILENAME = '/tmp/' + randomUUID()+".wav"
+    if (MICROPHONEFILE === undefined) MICROPHONEFILE = fs.createWriteStream(MICROPHONEFILENAME, {encoding: 'binary'})
+
+    switch (microphoneState) {
+        case 'on':
+            if (MICROPHONE === undefined) {
+                MICROPHONE = recorder.record()
+                MICROPHONE.stream().pipe(MICROPHONEFILE)
+            }
+            break
+        case 'resume':
+            MICROPHONE.resume()
+            break
+        case 'pause':
+            MICROPHONE.pause()
+            break
+        case 'done':
+            MICROPHONE.stop()
+            //const fileClose = promisify(MICROPHONEFILE.close)
+            //await fileClose()
+            const auth = await configGet('auth');
+            await io.emitWithAck('voicemessage', {
+                auth, 
+                type:'voicemessage', 
+                data:await fs.readFile(MICROPHONEFILENAME, {encoding:'binary'})
+            })
+            await fs.truncate(MICROPHONEFILENAME, 0)
+            MICROPHONE = undefined
+            MICROPHONEFILE = undefined
+            MICROPHONEFILE = undefined
+            break
+        case 'cancel':
+            MICROPHONE.stop()
+            await fs.truncate(MICROPHONEFILENAME, 0)
+            MICROPHONE = undefined
+            MICROPHONEFILE = undefined
+            MICROPHONEFILE = undefined
+            break
+        default:
+            addToRecvQueue({username: 'chatnet', data: 'a value value is one of: **on**, **pause**, **resume**, **done**, **cancel**', type: 'message'})
+            break
+    }
+    
+    await ipcExec(() => ipcPut('voiceMessage', undefined))
 }
 
 async function checkIfAuthChanged() {
@@ -162,13 +237,13 @@ async function toLoop() {
     //if (userstate === false) result = false
 
     const now = Date.now()
-    if ((now - LAST_DEAD_PROBE) > 5000) {
+    if ((now - LAST_DEAD_PROBE) > 0) {
         await ipcExec(() => ipcPut('lastping-sioclient', String(Date.now())))
         const lastPingCclient:string|undefined = await ipcExec(() => ipcGet('lastping-cclient'))
 
         if (lastPingCclient?.length) {
             const lastping = parseInt(lastPingCclient)
-            if ((now - lastping) > 15e3) result = false // cclient is probably dead 💀
+            if ((now - lastping) > 7000) result = false // cclient is probably dead 💀
             LAST_DEAD_PROBE = now
         }
     }

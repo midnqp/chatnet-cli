@@ -26,17 +26,32 @@ void ipc_init(json_object **jsono) {
 	while (true) {
 		if (!entexists(lockfile) && entexists(unlockfile)) {
 			setipclock();
-			break;
+
+			char *dbcontents = file_read(dbpath);
+			*jsono = json_tokener_parse(dbcontents);
+			// json_parse_check(*jsono, dbcontents);
+
+			if (!strcmp(dbcontents, "")) {
+				if (logdebug_if("cclient-ipcinit"))
+					logdebug("ipc_init: try again, the json file was empty, releasing ipc lock!!!\n");
+				unsetipclock();
+			} else {
+				if (logdebug_if("cclient-ipcinit"))
+					logdebug("ipc_init: success in having ipc lock\n");
+				break;
+			}
 		}
 
 		int waitms = 100 * 1000; // 100 ms
 		timeoutc += waitms;
+		if (logdebug_if("cclient-ipcinit"))
+			logdebug("ipc_init: trynna put lock on ipc ... %d/%dms\n", waitms, timeoutc);
 		usleep(waitms);
 	}
 
-	char *dbcontents = file_read(dbpath);
-	*jsono = json_tokener_parse(dbcontents);
-	json_parse_check(*jsono, dbcontents);
+	// char *dbcontents = file_read(dbpath);
+	// *jsono = json_tokener_parse(dbcontents);
+	// json_parse_check(*jsono, dbcontents);
 }
 
 /* check if given key exists */
@@ -109,7 +124,6 @@ void ipc_put_string(const char *key, const char *val) {
 	json_object_object_add(jsono, key, json_object_new_string(val));
 	const char *contents = json_object_to_json_string(jsono);
 	file_write(getipcpath(), contents);
-	logdebug("ipc_put_string: key is %s and val is %s\n", key, val);
 
 	ipc_cleanup(&jsono);
 }
