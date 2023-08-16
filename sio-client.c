@@ -4,13 +4,19 @@
 #include "ipc.h"
 #include "util.h"
 
-bool is_already_up() {
+bool sioclient_is_already_up() {
 	const int timeout = 3000; // 3 seconds for sioclient to make a noise, otherwise a new sioclient will be instantiated, because we can't go visit RAM.
 	char* ipcpath = getipcpath();
 	bool is_valid = is_file_json(ipcpath);
-	if (!is_valid) return false; // he crashed maybe.
+	if (!is_valid) {
+		logdebug("sioclient may have crashed, because ipc json is invalid\n");
+		return false;
+	}
 
-	if (!ipc_get_is_key("lastping-sioclient")) return false; // this key doesn't even exist, meaning nothing even started yet for the first time!!
+	if (!ipc_get_is_key("lastping-sioclient")) {
+		logdebug("lastping-sioclient doesn't even exist for the first time!!\n");
+		return false; 
+	}
 
 	int ms=0;
 	long lastpingsioclient = strtol(ipc_get_string("lastping-sioclient"), NULL, 10);
@@ -19,9 +25,13 @@ bool is_already_up() {
 		usleep(100*1000); // 100ms
 		
 		long lps = strtol(ipc_get_string("lastping-sioclient"), NULL, 10);
-		if (lps != lastpingsioclient) return true; // found updated lastping, he's alive!
-		lastpingsioclient = lps;
+		if (lps != lastpingsioclient) {
+			logdebug("found updated lastping, he's alive! 🩺\n");
+			 return true; }
+		//lastpingsioclient = lps;
+		logdebug("sioclient is_already_up waitloop %d/%d\n", ms, timeout);
 	}
+	logdebug("sioclient is_already_up loop ended, no response, he dead 💀\n");
 	return false; // lastping stayed same, he's dead!
 }
 
@@ -32,7 +42,7 @@ status init(char *execname) {
 	// don't spawn if true
 	bool flag_nosioclient = getenv("CHATNET_NOSIOCLIENT") != NULL;
 
-	bool already_up = is_already_up();
+	bool already_up = sioclient_is_already_up();
 	logdebug("sioclient is already %s\n", already_up ? "alive":"dead");
 	if (already_up) {
 		err.code =0;

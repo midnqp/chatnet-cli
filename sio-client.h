@@ -17,4 +17,6 @@ void sioclientinit(char* execname);
 
 void sioclientcleanup();
 
+bool sioclient_is_already_up() ;
+
 #endif // ends CHATNET_SIOCLIENT_H_

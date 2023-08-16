@@ -171,8 +171,12 @@ int main(int argc, char *argv[]) {
 	sc_log_set_thread_name("thread-main");
 	logdebug("hi\n");
 	GC_INIT();
-	createnewipc();
-	initnewipc();
+
+	bool is_sioclient_up = sioclient_is_already_up();
+	if (!is_sioclient_up) {
+		createnewipc();
+		initnewipc();
+	}
 
 	// check if config file exists, create if none
 	char *configfile = getconfigfile();
@@ -184,8 +188,8 @@ int main(int argc, char *argv[]) {
 		config_put_string("auth", "");
 	}
 
-	sioclientinit(argv[0]);
-	atexit(sioclientcleanup);
+	if (!is_sioclient_up) sioclientinit(argv[0]);
+	//atexit(sioclientcleanup);
 
 	while (1) {
 		bool _break = false;
