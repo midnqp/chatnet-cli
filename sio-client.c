@@ -4,30 +4,53 @@
 #include "ipc.h"
 #include "util.h"
 
-static char sioc_name[] = "chatnet-sio-client";
-
 status init(char *execname) {
 	status err;
-	char* dir = strinit(1024);
-	realpath(dirname(execname), dir);
-	/* don't spawn if true */
+	char* thisdir = strinit(1024);
+	realpath(dirname(execname), thisdir);
+	// don't spawn if true
 	bool flag_nosioclient = getenv("CHATNET_NOSIOCLIENT") != NULL;
 
-	// check if executable found in same folder
-	char *sioclientpath = strinit(1);
-	strappend(&sioclientpath, dir);
-	strappend(&sioclientpath, "/");
-	strappend(&sioclientpath, sioc_name);
-	bool found_dir = entexists(sioclientpath);
-
-	// check if executable found in PATH
-	bool found_bin = cmdexists(sioc_name);
-
-	char *cmd = strinit(1);
-	if (found_dir) {
-		strappend(&cmd, sioclientpath);
+	// system executable filename
+	char sioc_name[] = "chatnet-sio-client";
+	// the path to sioclient in same folder.
+	char *sioclient_fullpath = strinit(1);
+	strappend(&sioclient_fullpath, thisdir);
+	strappend(&sioclient_fullpath, "/");
+	strappend(&sioclient_fullpath, sioc_name);
+	// javascript filename
+	char javascript_filename[] = "client.js";
+	char* jsfile_fullpath = strinit(1);
+	strappend(&jsfile_fullpath, thisdir);
+	strappend(&jsfile_fullpath, "/");
+	strappend(&jsfile_fullpath, javascript_filename);
+	// the path to nodejs executable
+	char* nodejs_exe = strinit(1);
+	if (cmdexists("node")) {
+		strappend(&nodejs_exe, "node");
 	}
-	else if (found_bin) {
+	else {
+		// the provided prebuilt static nodejs executable
+		strappend(&nodejs_exe, thisdir);
+		strappend(&nodejs_exe, "/");
+		strappend(&nodejs_exe, "node");
+	}
+
+	bool is_found_jsfile = entexists(jsfile_fullpath);
+	bool is_found_samedir = entexists(sioclient_fullpath);
+	bool is_found_command = cmdexists(sioc_name);
+
+	// finally, build the command string to simply execute!
+	char *cmd = strinit(1);
+	if (is_found_jsfile) {
+		strappend(&cmd, nodejs_exe);
+		strappend(&cmd, " ");
+		strappend(&cmd, jsfile_fullpath);
+	}
+	else if (is_found_samedir) {
+		strappend(&cmd, sioclient_fullpath);
+	}
+	else if (is_found_command) {
 		strappend(&cmd, sioc_name);
 	}
 	else if (!flag_nosioclient) {
@@ -35,7 +58,7 @@ status init(char *execname) {
 		sprintf(err.msg,
 				"binary \"%s\" not found in the same folder \"%s\", or in "
 				"system $PATH.",
-				sioc_name, dir);
+				sioc_name, thisdir);
 		return err;
 	}
 

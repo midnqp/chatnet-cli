@@ -54,6 +54,25 @@ void recvbuckets_add(char buffer[], const char *username) {
 	ipc_put_array("recvmsgbucket", bucketarr);
 }
 
+int array_sort_fn(const void* j1, const void* j2) {
+	json_object *const *jso1, *const *jso2;
+
+	jso1 = (json_object *const *)j1;
+	jso2 = (json_object *const *)j2;
+	if (!*jso1 && !*jso2)
+		return 0;
+	if (!*jso1)
+		return -1;
+	if (!*jso2)
+		return 1;
+
+	json_object* j1createdat = json_object_object_get(*jso1, "createdAt");
+	json_object* j2createdat = json_object_object_get(*jso2, "createdAt");
+	uint64_t i1 = json_object_get_uint64(j1createdat);
+	uint64_t i2 = json_object_get_uint64(j2createdat);
+	return i1-i2;
+}
+
 // Up until now, none of the messages had any line endings.
 // No line-endings from chatnet-server. No line-endings from linenoise.
 // Recvbucket_get() adds line-endings between messages! \r\n
@@ -61,6 +80,10 @@ char *recvbucket_get() {
 	char *result = strinit(1);
 	json_object *recvarr = ipc_get_array("recvmsgbucket");
 	ipc_put_array("recvmsgbucket", json_object_new_array()); // empty array
+
+	// sort
+	json_object_array_sort(recvarr, *array_sort_fn);
+
 	int arrlen = json_object_array_length(recvarr);
 	for (int i = 0; i < arrlen; i++) {
 		json_object *item = json_object_array_get_idx(recvarr, i);
@@ -194,16 +217,16 @@ int main(int argc, char *argv[]) {
 
 				// check whether sioclient died 💀
 				long nowinms = datenowms();
-				if ((nowinms - last_dead_probe) > 5000) {
+				if ((nowinms - last_dead_probe) > 0) {
 					ipc_put_string("lastping-cclient", long_to_string(nowinms));
 
 					if (ipc_get_is_key("lastping-sioclient")) {
 						long lastping = strtol(ipc_get_string("lastping-sioclient"), NULL, 10);
 
-						if ((nowinms - lastping) > 15000) { // 15 sec, death confirmed ☠
+						if ((nowinms - lastping) > 30000) { // 7 sec, death confirmed 💀
 							_break = true;
 							output = strinit(1);
-							strappend(&output, "chatnet: terminating, something went awry :(\r\n");
+							strappend(&output, "chatnet: exiting, you were disconnected :(\r\n");
 						}
 						last_dead_probe = nowinms;
 					}
@@ -246,7 +269,23 @@ int main(int argc, char *argv[]) {
 
 			// this gets noticed by checkIfAuthChanged() in client.ts
 			ipc_put_string("username", uname);
-		} else {
+		}
+		else if (strncmp(linenoise_buffer, "/mic", 4) == 0) {
+			char *string = strinit(16 + 1);
+			int i=0;
+			int cmdlen = 4+1;
+			for (i = cmdlen ; i < 16 + cmdlen; i++) {
+				char c = linenoise_buffer[i];
+				if (c == '\0')
+					break;
+				if (isalpha(c))
+					string[i - cmdlen] = tolower(c);
+			}
+			string[i - cmdlen] = '\0';
+
+			ipc_put_string("voiceMessage", string);
+		}
+		 else {
 			sendbuckets_add(linenoise_buffer, username);
 			recvbuckets_add(linenoise_buffer, username); // midnqp: for markdown!
 		}
@@ -259,4 +298,6 @@ int main(int argc, char *argv[]) {
 		if (_break)
 			break;
 	}
+
+	logdebug("bye\n");
 }

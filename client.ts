@@ -56,7 +56,7 @@ async function main() {
 
 async function playVoiceMessage(msg) {
     const filename = '/tmp/chatnet-audio-received.wav'
-    await addToRecvQueue({data: '🎵 playing voice 🎶', username: msg.username, type: 'message'})
+    await addToRecvQueue({data: '🎶 this was a voice message', username: msg.username, type: 'message'})
     await fs.writeFile(filename, msg.data, {encoding: 'binary'})
     spawn('play', [filename])
     // const readStream= fs.createReadStream('/tmp/chatnet-audio-received.wav', {encoding: 'binary'})
@@ -237,16 +237,16 @@ async function toLoop() {
     //if (userstate === false) result = false
 
     const now = Date.now()
-    if ((now - LAST_DEAD_PROBE) > 0) {
+   // if ((now - LAST_DEAD_PROBE) > 0) {
         await ipcExec(() => ipcPut('lastping-sioclient', String(Date.now())))
         const lastPingCclient:string|undefined = await ipcExec(() => ipcGet('lastping-cclient'))
 
         if (lastPingCclient?.length) {
             const lastping = parseInt(lastPingCclient)
-            if ((now - lastping) > 7000) result = false // cclient is probably dead 💀
+            if ((now - lastping) > 3000) result = false // cclient is probably dead 💀
             LAST_DEAD_PROBE = now
         }
-    }
+   // }
 
     return result
 }
