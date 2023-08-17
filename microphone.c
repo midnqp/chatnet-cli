@@ -1,0 +1,4 @@
+#include "microphone.h"
+
+int CHATNET_MICROPHONE_STATE = 0;
+int CHATNET_CONVERSATION_STATE=0;
