@@ -76,7 +76,7 @@ async function main() {
         io.close()
         if (MICROPHONE !== undefined) MICROPHONE.stop()
         if (MICROPHONEFILE !== undefined) MICROPHONEFILE.close()
-        if (!SPEAKER?.killed) SPEAKER.kill()
+        if (SPEAKER?.killed == false) SPEAKER.kill()
         setClientUnavailable()
         logDebug('bye ' + '-'.repeat(30))
     } catch (err) {
