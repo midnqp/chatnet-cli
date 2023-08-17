@@ -13,7 +13,8 @@
 		"fs-extra": "^11.1.1",
 		"lodash": "^4.17.21",
 		"node-record-lpcm16": "^1.0.1",
-		"socket.io-client": "^4.6.1"
+		"socket.io-client": "^4.6.1",
+		"zod": "^3.22.1"
 	},
 	"devDependencies": {
 		"@j-ulrich/release-it-regex-bumper": "^4.1.1",
