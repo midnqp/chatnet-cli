@@ -11,5 +11,7 @@ typedef struct {
 char *strinit(size_t len);
 void strrealloc(char **dest, const char *src);
 void strappend(char **dest, const char *src);
+char *strtrim(char *string);
+char* streq(const char* a, const char* b);
 
 #endif // CHATNET_STRING_H_

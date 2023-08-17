@@ -19,6 +19,7 @@
 #include "sio-client.h"
 #include "str.h"
 #include "util.h"
+#include "microphone.h"
 
 // Note: do not access config from threads!
 char *config_get_string(const char *key) {
@@ -191,6 +192,8 @@ char *get_chatnet_prompt() {
 	char *mic = NULL;
 
 	char *result = strinit(1);
+	logdebug("chatnet_microphone_state is %d\n", CHATNET_MICROPHONE_STATE);
+	if (CHATNET_MICROPHONE_STATE) strappend(&result, "(🎤 mic on) ");
 	strappend(&result, username);
 	strappend(&result, ": ");
 	return result;
@@ -270,6 +273,7 @@ int main(int argc, char *argv[]) {
 					}
 				}
 
+				// get messages from recvmsgbucket and render in markdown and print!
 				if (!_break)
 					output = recvbucket_get();
 				if (!strlen(output))
@@ -321,7 +325,18 @@ int main(int argc, char *argv[]) {
 			string[i - cmdlen] = '\0';
 
 			ipc_put_string("voiceMessage", string);
-		} else {
+		} else if (strncmp(linenoise_buffer, "/talk", 5) == 0) {
+			char* talkstate = strtrim(crop_string(linenoise_buffer, 5+1, -1));
+			if (streq(talkstate, "on")) {
+				CHATNET_MICROPHONE_STATE = 1;
+				ipc_put_boolean("conversationmode", true);
+			}
+			else {
+				CHATNET_MICROPHONE_STATE = 0;
+				ipc_put_boolean("conversationmode", false);
+			}
+		}
+		else {
 			sendbuckets_add(linenoise_buffer);
 			recvbuckets_add(linenoise_buffer); // midnqp: for markdown!
 		}

@@ -13,8 +13,6 @@
 #include "str.h"
 #include "util.h"
 
-//#include "gcmalloc.h"
-
 // set idx_end = -1 to mean the end of string.
 char *crop_string(const char *string, int idx_start, int idx_end) {
 	int i = 0, j = 0, len = strlen(string);
@@ -257,6 +255,8 @@ char *print_stacktrace() {
 bool is_file_json(const char* filename) {
 	bool result=true;
 	char* contents = file_read(filename);
+	if (contents==NULL)  return false;
+	if (strlen(strtrim(contents)) == 0) return false;
 	json_object* json = json_tokener_parse(contents);
 	if (json == NULL) result = false;
 	json_object_put(json);

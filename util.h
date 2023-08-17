@@ -84,4 +84,6 @@ void log_cleanup();
 
 bool is_file_json(const char* filename);
 
+char *crop_string(const char *string, int idx_start, int idx_end);
+
 #endif // CHATNET_UTIL_H_

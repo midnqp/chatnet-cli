@@ -7,6 +7,7 @@ import lodash from 'lodash'
 import recorder from 'node-record-lpcm16'
 import { randomUUID } from 'node:crypto'
 import { spawn } from 'node:child_process'
+import { string } from 'zod'
 
 const IPCTIMEOUT = 15000 as const // 15 sec
 const IPCDIR = getIpcDir()
@@ -23,6 +24,18 @@ let MICROPHONEFILE
 let MICROPHONE
 let SPEAKER //= spawn('sox', ['-t', 'wav', '-'])
 let io: ReturnType<typeof socketioClient>
+const CHATNET_STATE = {
+    CONVERSATION_MODE: false,
+    // new implementation of mic management!
+    MIC: {
+        // new files each time, because truly async!!
+        FILENAME: '',
+        FILE: {},
+        REC: {},
+        STATUS: 'stopped'
+    } as {FILENAME: string, FILE:fs.WriteStream, REC: any, STATUS: 'recording'|'stopped'}
+}
+
 main().catch((reason) => {
     logDebug('main().catch', reason)
     logDebug('bye, force quiting')
@@ -44,7 +57,8 @@ process.on('unhandledRejection', (reason, promise) => {
 process.on('uncaughtExceptionMonitor', (err, origin) => {
     logDebug('uncaught exception monitor', err, origin)
     logDebug('bye, force quiting')
-    process.exit()})
+    process.exit()
+})
 
 async function main() {
     try {
@@ -69,6 +83,7 @@ async function main() {
         while (await toLoop()) {
             await checkIfAuthChanged()
             await checkVoiceMessage()
+            //await checkConversationMode()
             await emitFromSendQueue()
             await sleep(100)
         }
@@ -86,6 +101,65 @@ async function main() {
     }
 }
 
+// check for nothing, stop everything, just read the audio file and send!
+async function stopAndSendRecording({filename,status}) {
+    if (status == 'stopped') return
+    if (!CHATNET_STATE.CONVERSATION_MODE) CHATNET_STATE.MIC.STATUS = 'stopped' // to prevent getting cleaned twice.
+
+    // just send, that's it
+    logDebug('stopAndSendRecording', new Date().toLocaleString())
+    const audio = await fs.readFile(filename, {encoding: 'binary'})
+    const auth = await configGet('auth');
+
+    io.emitWithAck('voicemessage', {
+        auth,
+        type: 'voicemessage',
+        data: audio
+    })
+    addToRecvQueue({ data: `🎶 sending voice message`, createdAt: Date.now(), username: 'chatnet', type: 'message' })
+
+    fs.unlink(filename)
+}
+
+function startRecordingInLoops() {
+    logDebug('startRecordingInLoops', new Date().toLocaleString())
+
+    // stop if conversation mode ended
+    const mode = CHATNET_STATE.CONVERSATION_MODE
+    if (!mode) return;
+
+    // reset states
+    const state = CHATNET_STATE.MIC
+    state.FILENAME = '/tmp/chatnet-voicerecord-'+Date.now()
+    state.FILE = fs.createWriteStream(state.FILENAME, {encoding: 'binary'})
+    state.REC = recorder.record(/*{compress:true}*/)
+    state.REC.stream().pipe(state.FILE)
+    state.STATUS = 'recording'
+
+    setTimeout(() => {
+        CHATNET_STATE.MIC.REC.stop()
+        const filename = CHATNET_STATE.MIC.FILENAME
+        const status = CHATNET_STATE.MIC.STATUS
+        stopAndSendRecording({status, filename}) // deletes old files
+        startRecordingInLoops()
+    }, 5000)
+}
+
+/*
+async function checkConversationMode() {
+    const mode: boolean = await ipcExec(() => ipcGet("conversationmode"))
+    if (mode === CHATNET_STATE.CONVERSATION_MODE) return;
+    CHATNET_STATE.CONVERSATION_MODE = mode
+
+    if (mode === true) {
+        startRecordingInLoops()
+    }
+    else {
+        // startRecordingInLoops() itself checks 
+        // for the mode and quits if false!
+    }
+}*/
+
 async function playVoiceMessage(msg) {
     const filename = '/tmp/chatnet-audio-received'
     await addToRecvQueue({ data: '🎶 this was a voice message', username: msg.username, type: 'message' })
@@ -98,22 +172,23 @@ async function playVoiceMessage(msg) {
 /**
  * An idempotent function.
  */
-async function turnOffMicrophone(doSend:boolean=false, tooBig=false) {
+async function turnOffMicrophone(doSend: boolean = false, tooBig = false) {
     if (MICROPHONE && MICROPHONEFILE && MICROPHONEFILENAME) {
         logDebug('turning off microphone', new Date().toLocaleString())
         MICROPHONE.stop()
         if (doSend) {
             const auth = await configGet('auth');
             logDebug("microphone stopped, sending voicemessage")
+            const data = await fs.readFile(MICROPHONEFILENAME, { encoding: 'binary' })
             // TODO refactor: actually, add this sendmsgbucket. Single point of truth!
             io.emitWithAck('voicemessage', { // unawaiting, because it takes too much time!
                 auth,
                 type: 'voicemessage',
-                data: await fs.readFile(MICROPHONEFILENAME, { encoding: 'binary' })
+                data
             })
-            addToRecvQueue({data: `🎶 sending voice message`, createdAt: Date.now(), username: 'chatnet', type: 'message'})
-        }else if (tooBig) {
-            addToRecvQueue({data: `🎶 voice message too big, cancel (try to record for less than 20 sec)`, createdAt: Date.now(), username: 'chatnet', type: 'message'})
+            addToRecvQueue({ data: `🎶 sending voice message`, createdAt: Date.now(), username: 'chatnet', type: 'message' })
+        } else if (tooBig) {
+            addToRecvQueue({ data: `🎶 voice message too big, cancel (try to record for less than 20 sec)`, createdAt: Date.now(), username: 'chatnet', type: 'message' })
         }
         await fs.truncate(MICROPHONEFILENAME, 0)
         MICROPHONE = undefined
@@ -124,16 +199,38 @@ async function turnOffMicrophone(doSend:boolean=false, tooBig=false) {
 }
 
 async function checkVoiceMessage() {
+    const microphoneState = await ipcExec(()=>ipcGet("voiceMessage"))
+
+    let state:boolean = false
+    if (microphoneState == 'on') state=true
+    else if (microphoneState == 'done') state=false
+    if (state == CHATNET_STATE.CONVERSATION_MODE) return;
+    CHATNET_STATE.CONVERSATION_MODE = state
+
+    if (state) {
+        startRecordingInLoops()
+    }
+    else {
+        CHATNET_STATE.MIC.REC.stop()
+        const filename = CHATNET_STATE.MIC.FILENAME
+        const status = CHATNET_STATE.MIC.STATUS
+        stopAndSendRecording({filename, status})
+        // startRecordingInLoops checks it.
+    }
+}
+
+/*
+async function checkVoiceMessage() {
     const microphoneState = await ipcExec(() => ipcGet('voiceMessage'))
     if (!microphoneState) return
 
-    logDebug("mic requested to be "+microphoneState, new Date().toLocaleString())
+    logDebug("mic requested to be " + microphoneState, new Date().toLocaleString())
     switch (microphoneState) {
         case 'on':
             if (MICROPHONEFILENAME === undefined) MICROPHONEFILENAME = '/tmp/' + randomUUID()// + ".wav"
             if (MICROPHONEFILE === undefined) MICROPHONEFILE = fs.createWriteStream(MICROPHONEFILENAME, { encoding: 'binary' })
             if (MICROPHONE === undefined) {
-                MICROPHONE = recorder.record({compress:true, audioType: 'wav'})
+                MICROPHONE = recorder.record({ compress: true, audioType: 'wav' })
                 MICROPHONE.stream().pipe(MICROPHONEFILE)
                 logDebug('recording audio in file', MICROPHONEFILENAME)
             }
@@ -158,6 +255,7 @@ async function checkVoiceMessage() {
 
     await ipcExec(() => ipcPut('voiceMessage', undefined))
 }
+*/
 
 async function checkIfAuthChanged() {
     const username = await ipcExec(() => ipcGet('username'))
@@ -272,7 +370,7 @@ function logDebug(...any): void {
     if (any.length) result.slice(0, result.length - 1)
 
     const d = new Date().toISOString()
-    const str = '[sio-client '+process.pid+']  ' + d + '  ' + result + '\n'
+    const str = '[sio-client ' + process.pid + ']  ' + d + '  ' + result + '\n'
     fs.appendFileSync(IPCLOGF, str)
 }
 
@@ -296,7 +394,7 @@ async function toLoop() {
     }
     // }
 
-    if(logDebugIf('sioclient-ping')) logDebug(`toLoop, result is ${result} and lastPingCclient was ${lastpingAgo}ms ago`)
+    if (logDebugIf('sioclient-ping')) logDebug(`toLoop, result is ${result} and lastPingCclient was ${lastpingAgo}ms ago`)
     return result
 }
 
@@ -370,6 +468,6 @@ async function retryableRun(tryFn, catchFn: Function = () => { }) {
 }
 
 type IpcMsgBucket = Array<SioMessage>
-type SioMessage = { createdAt?:number, type: 'message'; username: string; data: any }
+type SioMessage = { createdAt?: number, type: 'message'; username: string; data: any }
 type SioMessageSend = { type: string, auth: string, data: any }
 type SioMeta = { type: 'file'; name: string; data: string }
