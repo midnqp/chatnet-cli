@@ -21,7 +21,7 @@ let LAST_DEAD_PROBE = 0
 let MICROPHONEFILENAME
 let MICROPHONEFILE
 let MICROPHONE
-const SPEAKER = spawn('sox', ['-t', 'wav', '-'])
+let SPEAKER //= spawn('sox', ['-t', 'wav', '-'])
 let io: ReturnType<typeof socketioClient>
 main().catch((reason) => {
     logDebug('main().catch', reason)
@@ -76,7 +76,7 @@ async function main() {
         io.close()
         if (MICROPHONE !== undefined) MICROPHONE.stop()
         if (MICROPHONEFILE !== undefined) MICROPHONEFILE.close()
-        if (!SPEAKER.killed) SPEAKER.kill()
+        if (!SPEAKER?.killed) SPEAKER.kill()
         setClientUnavailable()
         logDebug('bye ' + '-'.repeat(30))
     } catch (err) {
@@ -87,7 +87,7 @@ async function main() {
 }
 
 async function playVoiceMessage(msg) {
-    const filename = '/tmp/chatnet-audio-received.wav'
+    const filename = '/tmp/chatnet-audio-received'
     await addToRecvQueue({ data: '🎶 this was a voice message', username: msg.username, type: 'message' })
     await fs.writeFile(filename, msg.data, { encoding: 'binary' })
     spawn('play', [filename])
@@ -95,20 +95,49 @@ async function playVoiceMessage(msg) {
     // readStream.pipe(SPEAKER.stdin)
 }
 
+/**
+ * An idempotent function.
+ */
+async function turnOffMicrophone(doSend:boolean=false, tooBig=false) {
+    if (MICROPHONE && MICROPHONEFILE && MICROPHONEFILENAME) {
+        logDebug('turning off microphone', new Date().toLocaleString())
+        MICROPHONE.stop()
+        if (doSend) {
+            const auth = await configGet('auth');
+            logDebug("microphone stopped, sending voicemessage")
+            // TODO refactor: actually, add this sendmsgbucket. Single point of truth!
+            io.emitWithAck('voicemessage', { // unawaiting, because it takes too much time!
+                auth,
+                type: 'voicemessage',
+                data: await fs.readFile(MICROPHONEFILENAME, { encoding: 'binary' })
+            })
+            addToRecvQueue({data: `🎶 sending voice message`, createdAt: Date.now(), username: 'chatnet', type: 'message'})
+        }else if (tooBig) {
+            addToRecvQueue({data: `🎶 voice message too big, cancel (try to record for less than 20 sec)`, createdAt: Date.now(), username: 'chatnet', type: 'message'})
+        }
+        await fs.truncate(MICROPHONEFILENAME, 0)
+        MICROPHONE = undefined
+        MICROPHONEFILE = undefined
+        MICROPHONEFILENAME = undefined
+        logDebug("truncated, and all set to undefined")
+    }
+}
+
 async function checkVoiceMessage() {
     const microphoneState = await ipcExec(() => ipcGet('voiceMessage'))
     if (!microphoneState) return
 
-    if (MICROPHONEFILENAME === undefined) MICROPHONEFILENAME = '/tmp/' + randomUUID() + ".wav"
-    if (MICROPHONEFILE === undefined) MICROPHONEFILE = fs.createWriteStream(MICROPHONEFILENAME, { encoding: 'binary' })
-
-    logDebug("mic requested to be "+microphoneState)
+    logDebug("mic requested to be "+microphoneState, new Date().toLocaleString())
     switch (microphoneState) {
         case 'on':
+            if (MICROPHONEFILENAME === undefined) MICROPHONEFILENAME = '/tmp/' + randomUUID()// + ".wav"
+            if (MICROPHONEFILE === undefined) MICROPHONEFILE = fs.createWriteStream(MICROPHONEFILENAME, { encoding: 'binary' })
             if (MICROPHONE === undefined) {
-                MICROPHONE = recorder.record()
+                MICROPHONE = recorder.record({compress:true, audioType: 'wav'})
                 MICROPHONE.stream().pipe(MICROPHONEFILE)
+                logDebug('recording audio in file', MICROPHONEFILENAME)
             }
+            setTimeout(() => turnOffMicrophone(false, true), 20000) // auto cancel after 10sec #audio-trim 🧠
             break
         case 'resume':
             MICROPHONE.resume()
@@ -117,28 +146,10 @@ async function checkVoiceMessage() {
             MICROPHONE.pause()
             break
         case 'done':
-            MICROPHONE.stop()
-            //const fileClose = promisify(MICROPHONEFILE.close)
-            //await fileClose()
-            const auth = await configGet('auth');
-            logDebug("file closed, microphone stopped, sending voicemessage")
-            io.emitWithAck('voicemessage', { // unawaiting, because it takes too much time!
-                auth,
-                type: 'voicemessage',
-                data: await fs.readFile(MICROPHONEFILENAME, { encoding: 'binary' })
-            })
-            await fs.truncate(MICROPHONEFILENAME, 0)
-            MICROPHONE = undefined
-            MICROPHONEFILE = undefined
-            MICROPHONEFILENAME = undefined
-            logDebug("delivered voicemessage, truncated, and all set to undefined")
+            await turnOffMicrophone(true)
             break
         case 'cancel':
-            MICROPHONE.stop()
-            await fs.truncate(MICROPHONEFILENAME, 0)
-            MICROPHONE = undefined
-            MICROPHONEFILE = undefined
-            MICROPHONEFILENAME = undefined
+            await turnOffMicrophone(false)
             break
         default:
             addToRecvQueue({ username: 'chatnet', data: 'a value value is one of: **on**, **pause**, **resume**, **done**, **cancel**', type: 'message' })
@@ -285,7 +296,7 @@ async function toLoop() {
     }
     // }
 
-    logDebug(`toLoop, result is ${result} and lastPingCclient was ${lastpingAgo}ms ago`)
+    if(logDebugIf('sioclient-ping')) logDebug(`toLoop, result is ${result} and lastPingCclient was ${lastpingAgo}ms ago`)
     return result
 }
 
@@ -359,6 +370,6 @@ async function retryableRun(tryFn, catchFn: Function = () => { }) {
 }
 
 type IpcMsgBucket = Array<SioMessage>
-type SioMessage = { type: 'message'; username: string; data: any }
+type SioMessage = { createdAt?:number, type: 'message'; username: string; data: any }
 type SioMessageSend = { type: string, auth: string, data: any }
 type SioMeta = { type: 'file'; name: string; data: string }

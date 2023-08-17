@@ -117,6 +117,8 @@
 #include <unistd.h>
 #include "linenoise.h"
 
+#include <str.h> //midnqp
+
 #define LINENOISE_DEFAULT_HISTORY_MAX_LEN 100
 #define LINENOISE_MAX_LINE 4096
 static char *unsupported_term[] = {"dumb","cons25","emacs",NULL};
@@ -155,9 +157,11 @@ enum KEY_ACTION{
 	CTRL_U = 21,        /* Ctrl+u */
 	CTRL_W = 23,        /* Ctrl+w */
 	ESC = 27,           /* Escape */
-	BACKSPACE =  127    /* Backspace */
+	BACKSPACE =  127,    /* Backspace */
+    CAPSLOCK = 66 // midnqp
 };
 
+static int CHATNET_MIC_STATE = 0;
 static void linenoiseAtExit(void);
 int linenoiseHistoryAdd(const char *line);
 #define REFRESH_CLEAN (1<<0)    // Clean the old prompt from the screen
@@ -868,7 +872,10 @@ void linenoiseEditDeletePrevWord(struct linenoiseState *l) {
  * fails. If stdin_fd or stdout_fd are set to -1, the default is to use
  * STDIN_FILENO and STDOUT_FILENO.
  */
-int linenoiseEditStart(struct linenoiseState *l, int stdin_fd, int stdout_fd, char *buf, size_t buflen, const char *prompt) {
+int linenoiseEditStart(struct linenoiseState *l, int stdin_fd, int stdout_fd, char *buf, size_t buflen, char *prompt) {
+    // midnqp: append mic state to prompt
+    if (CHATNET_MIC_STATE == 1) strappend(&prompt, " (🎤 mic on) ");
+
     /* Populate the linenoise state that we pass to functions implementing
      * specific editing functionalities. */
     l->in_completion = 0;
@@ -1084,6 +1091,26 @@ char *linenoiseEditFeed(struct linenoiseState *l) {
     case CTRL_W: /* ctrl+w, delete previous word */
         linenoiseEditDeletePrevWord(l);
         break;
+    case TAB: // midnqp: toggle mic 🚀
+        char cmd1[] = "/mic on";
+        char cmd2[] = "/mic done";
+        char* cmd = NULL;
+        if (CHATNET_MIC_STATE == 0) {
+            cmd=cmd1;
+            CHATNET_MIC_STATE = 1;
+        }
+        else {
+            cmd = cmd2;
+            CHATNET_MIC_STATE = 0;
+        }
+        size_t i=0;
+        for (; i < strlen(cmd); i++) {
+            char cc = cmd[i];
+            linenoiseEditInsert(l,cc);
+        }
+        history_len--;
+        free(history[history_len]);
+        return strdup(l->buf);
     }
     return linenoiseEditMore;
 }

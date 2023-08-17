@@ -74,7 +74,7 @@ typedef struct linenoiseCompletions {
 } linenoiseCompletions;
 
 /* Non blocking API. */
-int linenoiseEditStart(struct linenoiseState *l, int stdin_fd, int stdout_fd, char *buf, size_t buflen, const char *prompt);
+int linenoiseEditStart(struct linenoiseState *l, int stdin_fd, int stdout_fd, char *buf, size_t buflen, char *prompt);
 char *linenoiseEditFeed(struct linenoiseState *l);
 void linenoiseEditStop(struct linenoiseState *l);
 void linenoiseHide(struct linenoiseState *l);
