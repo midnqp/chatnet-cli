@@ -1,20 +1,17 @@
 {
-    "compilerOptions": {
-        "types": ["node"],
-        "lib": ["ESNext"],
-        "target": "ESNext",
-        "module": "ESNext",
-        "moduleResolution": "nodenext",
-        "outDir": "dist",
-        "incremental": true,
-
-        "strict": true,
-        "allowJs": true,
-        "allowSyntheticDefaultImports": true,
-        "esModuleInterop": true,
-        "skipLibCheck": true,
-        "noImplicitAny": false
-    },
-    "include": ["./client.ts"],
-    "exclude": ["node_modules"]
+  "compilerOptions": {
+    "outDir": "dist",
+    "moduleResolution": "NodeNext",
+    "module": "NodeNext",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "./src/**/*"
+  ],
+  "typeAcquisition": {
+    "enable": true
+  }
 }
