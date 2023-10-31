@@ -1,34 +1,21 @@
 {
-	"name": "chatnet-socketio-client",
-	"version": "2.0.1",
-	"type": "module",
+	"name": "chatnet-cli",
+	"type": "commonjs",
 	"scripts": {
-		"build": "tsc -p tsconfig.json",
-		"esbuild": "esbuild dist/client.js --outfile=dist/bundle.cjs --format=cjs --platform=node",
-		"pkg": "pkg --no-bytecode --public --options no-warnings -t node18 ./dist/bundle.cjs -o ./dist/chatnet-sio-client",
-		"bin": "npm run build && npm run esbuild && npm run pkg",
-		"release": "release-it"
+		"build": "tsc -p tsconfig.json && tsc-alias -p tsconfig.json",
+		"bundle": "esbuild --bundle dist/src/index.js --outfile=dist/bundle.cjs --format=cjs --platform=node",
+		"package": "npx pkg -t node18 ./dist/bundle.cjs -o dist/package.bin",
+		"bbp": "npm run build && npm run bundle && npm run package"
 	},
 	"dependencies": {
-		"fs-extra": "^11.1.1",
-		"lodash": "^4.17.21",
-		"node-record-lpcm16": "^1.0.1",
-		"socket.io-client": "^4.6.1",
-		"zod": "^3.22.1"
+		"commander": "^11.1.0",
+		"socket.io-client": "^4.7.2"
 	},
 	"devDependencies": {
-		"@j-ulrich/release-it-regex-bumper": "^4.1.1",
-		"@replit/database": "^2.0.3",
-		"@types/express": "^4.17.17",
-		"@types/fs-extra": "^11.0.1",
-		"@types/lodash": "^4.14.194",
-		"@types/node": "^18.15.13",
-		"boxen-cli": "^4.0.0",
-		"esbuild": "^0.19.0",
-		"express": "^4.18.2",
+		"@types/node": "^20.8.9",
+		"esbuild": "^0.19.5",
 		"pkg": "^5.8.1",
-		"release-it": "^15.10.1",
-		"socket.io": "^4.6.1",
-		"typescript": "^5.1.6"
+		"tsc-alias": "^1.8.8",
+		"typescript": "^5.2.2"
 	}
 }

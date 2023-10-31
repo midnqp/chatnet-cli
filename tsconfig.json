@@ -1,12 +1,17 @@
 {
   "compilerOptions": {
     "outDir": "dist",
-    "moduleResolution": "NodeNext",
     "module": "NodeNext",
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "NodeNext",
     "strict": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "paths": {
+      "@src/*": [
+        "./src/*"
+      ]
+    },
+    "rootDir": ".",
+    "baseUrl": "."
   },
   "include": [
     "./src/**/*"
