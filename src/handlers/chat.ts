@@ -1,14 +1,15 @@
 import services from '@src/services/index.js'
 
-let micStatus = false
-
 export default async function () {
     services.linenoise.getPrompt = async () => {
-        let result = services.linenoise.prompt
+        let result
 
         const username = await services.config.get('username')
         const name = username || '<username-not-set>'
         result = name + ': '
+
+        if (services.mic.isTurnedOn)
+        result = '🎙️ ' + result
 
         return result
     }
@@ -43,6 +44,7 @@ async function handleExit() {
     services.linenoise.close()
     services.stdoutee.close()
     services.receive.close()
+    services.api.close()
 }
 
 async function handleSetName(name: string) {
@@ -51,7 +53,7 @@ async function handleSetName(name: string) {
 }
 
 async function handleMicToggle() {
-    if (micStatus == false) {
+    if (!services.mic.isTurnedOn) {
         await services.mic.start()
 
         services.mic.setTimeoutFn(function () {

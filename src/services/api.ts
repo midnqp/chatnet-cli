@@ -7,20 +7,20 @@ import services from '@src/services/index.js'
  * Empty constructor. Instantiate using `static async init()`.
  */
 class ChatnetApi {
-    constructor() {    }
+    constructor() { }
 
     private serverUrl = 'https://chatnet-server.midnqp.repl.co'
 
     // do not access, instead use `this.getClient()`
-    private _client:any
+    private _client: any
 
     async getClient() {
         const socketio = await importSocketio
-        let result :ReturnType<typeof socketio.io>
+        let result: ReturnType<typeof socketio.io>
 
         if (this._client === undefined) {
             const auth = await services.config.get('auth')
-            result = socketio.io(this.serverUrl, {auth: {auth}})
+            result = socketio.io(this.serverUrl, { auth: { auth } })
             this._client = result
         }
         else result = this._client
@@ -36,26 +36,26 @@ class ChatnetApi {
     // todo refactor this, only make the api call and return the ack response from this function.
     async setOrUpdateName(username: string) {
         const client = await this.getClient()
-        const auth:string|undefined = await services.config.get('auth')
+        const auth: string | undefined = await services.config.get('auth')
 
-        const {auth:authBearer} = await client.emitWithAck('auth', { 
-            auth, type: 'auth', data: username 
+        const { auth: authBearer } = await client.emitWithAck('auth', {
+            auth,
+            type: 'auth',
+            data: username
         })
-        if (authBearer == '') {
-            // username is taken or invalid.
-            // server validates and sends msg to user.
-        }
-        else {
+        if (authBearer) {
             await services.config.set('auth', authBearer)
             await services.config.set('username', username)
         }
     }
 
-    onBroadcast(cb:Function) {}
+    onBroadcast(cb: Function) { }
 
-    onHistory(cb:Function) {}
+    onHistory(cb: Function) { }
 
-    onVoicemessage(cb:Function) {}
+    onVoicemessage(cb: Function) { }
+
+    sendVoicemessage(audio: Buffer) { }
 }
 
 export default new ChatnetApi()

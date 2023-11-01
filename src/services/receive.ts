@@ -29,7 +29,7 @@ class ChatnetReceive {
     }
 
     close() {
-        services.api.close()
+        //services.api.close()
         // todo: mic stop() // but not here, this is for receiving.
         // todo: mic file close()  // but not here, this is for receiving.
         // todo: speaker kill() // yup, you here!
