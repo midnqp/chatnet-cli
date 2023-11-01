@@ -1,10 +1,12 @@
 import fs from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
 import services from '@src/services/index.js'
 
 class Conf {
     constructor() {}
 
-    private confPath=process.env.HOME + '/.chatnet'
+    private confPath=path.join(os.homedir(), '.chatnet')
 
     private defaultConf = {
         auth: '',
