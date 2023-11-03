@@ -1,11 +1,6 @@
 const importSocketio = import('socket.io-client')
 import services from '@src/services/index.js'
 
-/**
- * This class contains API calls to Chatnet server.
- * 
- * Empty constructor. Instantiate using `static async init()`.
- */
 class ChatnetApi {
     constructor() { }
 
@@ -14,7 +9,7 @@ class ChatnetApi {
     // do not access, instead use `this.getClient()`
     private _client: any
 
-    async getClient() {
+    private async getClient() {
         const socketio = await importSocketio
         let result: ReturnType<typeof socketio.io>
 
@@ -28,34 +23,26 @@ class ChatnetApi {
         return result
     }
 
-    async close() {
+    public async close() {
         const client = await this.getClient()
         client.close()
     }
 
-    // todo refactor this, only make the api call and return the ack response from this function.
-    async setOrUpdateName(username: string) {
-        const client = await this.getClient()
-        const auth: string | undefined = await services.config.get('auth')
+    public async setOrUpdateName(opts:{username: string, auth: string}): Promise<{auth:string}> {
+        const {username, auth} = opts
 
-        const { auth: authBearer } = await client.emitWithAck('auth', {
+        const client = await this.getClient()
+
+        return client.emitWithAck('auth', {
             auth,
             type: 'auth',
             data: username
         })
-        if (authBearer) {
-            await services.config.set('auth', authBearer)
-            await services.config.set('username', username)
-        }
     }
 
-    onBroadcast(cb: Function) { }
-
-    onHistory(cb: Function) { }
-
-    onVoicemessage(cb: Function) { }
-
-    sendVoicemessage(audio: Buffer) { }
+    public on(eventName:string, callback:(...args: any[]) => void) {
+        this.getClient().then(client => client.on(eventName, callback))
+    }
 }
 
 export default new ChatnetApi()
