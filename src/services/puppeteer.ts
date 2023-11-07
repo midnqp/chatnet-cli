@@ -13,24 +13,31 @@ class ChatnetPuppeteerService {
 
         const browser = await puppeteer.launch({
             headless: 'new',
-            ignoreDefaultArgs: ["--mute-audio"],
-            args: ["--autoplay-policy=no-user-gesture-required"],
+            executablePath: './dist/chromium/chrome.exe',
+            args: ["--autoplay-policy=no-user-gesture-required", '--use-fake-ui-for-media-stream'],
         })
+        console.log('browser file', browser.process()?.spawnfile)
+
         this.page = await browser.newPage()
+        
         this.page.on('console', (event) => {
-            services.stdoutee.print('puppeteer: '+ event.text())
+            services.stdoutee.print('puppeteer output: '+ event.text())
+        })
+        
+        this.page.on('error', event => {
+            services.stdoutee.print('puppeteer output: '+ event)
         })
 
         return this.page
     }
 
     goto(url:string) {
-        if (!this.page)  throw this.notInitializedError
+        if (!this.page) throw this.notInitializedError
+        return this.page.goto(url)
     }
 
     async eval(funcString:string) {
         if (!this.page) throw this.notInitializedError
-
         return this.page.evaluate(funcString)
     }
 
