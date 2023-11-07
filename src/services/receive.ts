@@ -15,6 +15,7 @@ class ChatnetReceive {
     async start() {
         if (this.isStarted) return
 
+        console.log('started chatnet receive')
         this.isStarted = true
         services.api.on('broadcast', this.broadcastHandler)
         services.api.on('history', this.historyHandler)
@@ -30,7 +31,6 @@ class ChatnetReceive {
 
     close() {
         if (!this.isStarted) return
-
         this.isStarted = false
         services.api.close()
         // todo: mic stop() // but not here, this is for receiving.

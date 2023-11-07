@@ -1,6 +1,6 @@
 import services from '@src/services/index.js'
 
-class ChatnetChatHandler {
+class ChatnetChatCmd {
     constructor() { }
     
     action() {
@@ -13,9 +13,14 @@ class ChatnetChatHandler {
 
             return result
         }
-        services.linenoise.start(this.handleUserInput)
 
-        services.receive.start()
+        ;(async () => {
+            await services.api.init()
+            await services.puppeteer.init()
+            services.linenoise.start(this.handleUserInput.bind(this))
+            services.receive.start()
+        })()
+
     }
 
     async handleUserInput(msg: string):Promise<boolean> {
@@ -29,6 +34,8 @@ class ChatnetChatHandler {
                 break
             case '/name':
                 await this.handleSetName(msgSplit[1])
+                break
+            case '/call':
                 break
             default:
                 // regular text messages
@@ -47,12 +54,13 @@ class ChatnetChatHandler {
         }
     }
 
-    exit() {
+     exit() {
         services.linenoise.close()
-        services.stdoutee.close()
         services.receive.close()
+        services.stdoutee.close()
         services.api.close()
+        services.puppeteer.close()
     }
 }
 
-export default new ChatnetChatHandler()
+export default new ChatnetChatCmd()

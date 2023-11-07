@@ -21,10 +21,6 @@ class StdoutEventEmitter {
         return this.eventEmitter.emit('print', msg)
     }
 
-    printChatnetMsg(msg:any) {
-        console.log(msg.username, msg.data, msg.createdAt || '')
-    }
-
     close() {
         return this.eventEmitter.removeAllListeners()
     }

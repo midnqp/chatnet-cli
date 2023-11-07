@@ -1,7 +1,7 @@
-import chat from './chat.js'
+import chat from '@src/handlers/chat.js'
 
-class Handlers {
+class ChatnetCmdHandlers {
     chat = chat
 }
 
-export default new Handlers()
+export default new ChatnetCmdHandlers()

@@ -1,48 +1,64 @@
 const importSocketio = import('socket.io-client')
 import services from '@src/services/index.js'
 
-class ChatnetApi {
-    constructor() { }
+class ChatnetApiService {
+    //private client:Promise<ReturnType<Awaited<typeof importSocketio>['io']>>
+
+    constructor() {
+        /*  this.client = new Promise(async (resolve, reject) => {
+              const socketio = await importSocketio
+              const auth = await services.config.get('auth')
+  
+              resolve(socketio.io(this.serverUrl, {auth:{auth}}))
+          })*/
+    }
+
 
     private serverUrl = 'https://chatnet-server.midnqp.repl.co'
 
-    // do not access, instead use `this.getClient()`
-    private _client: any
+    private client: null | ReturnType<Awaited<typeof importSocketio>['io']> = null
 
-    private async getClient() {
+    private notInitializedError: Error = new Error('ChatnetApiService not initialized, or has been already closed. Did you run `init()`?')
+
+    public async init(): Promise<void> {
         const socketio = await importSocketio
-        let result: ReturnType<typeof socketio.io>
 
-        if (this._client === undefined) {
-            const auth = await services.config.get('auth')
-            result = socketio.io(this.serverUrl, { auth: { auth } })
-            this._client = result
-        }
-        else result = this._client
+        if (this.client) return
 
-        return result
+        const auth = await services.config.get('auth')
+        this.client = socketio.io(this.serverUrl, { auth: { auth } })
     }
 
     public async close() {
-        const client = await this.getClient()
-        client.close()
+        if (!this.client) return
+
+        const c = this.client
+        this.client = null
+        await c.close()
     }
 
-    public async setOrUpdateName(opts:{username: string, auth: string}): Promise<{auth:string}> {
-        const {username, auth} = opts
+    public async makeRequest(data: Object) {
+        if (!this.client) throw this.notInitializedError
+        // todo: complete this and use this instead.
+    }
 
-        const client = await this.getClient()
+    // todo: refactor, services should be aloof of any business code
+    public async setOrUpdateName(opts: { username: string, auth: string }): Promise<{ auth: string }> {
+        const { username, auth } = opts
 
-        return client.emitWithAck('auth', {
+        if (!this.client) throw this.notInitializedError
+
+        return this.client.emitWithAck('auth', {
             auth,
             type: 'auth',
             data: username
         })
     }
 
-    public on(eventName:string, callback:(...args: any[]) => void) {
-        this.getClient().then(client => client.on(eventName, callback))
+    public on(eventName: string, callback: (...args: any[]) => void) {
+        if (!this.client) throw this.notInitializedError
+        this.client.on(eventName, callback)
     }
 }
 
-export default new ChatnetApi()
+export default new ChatnetApiService()

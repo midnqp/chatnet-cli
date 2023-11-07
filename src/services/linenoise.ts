@@ -6,7 +6,7 @@ class ReadInput {
 
     private rl = readline.promises.createInterface(process.stdin, process.stdout)
 
-    public prompt = 'you: '
+    public prompt = '> '
 
     /**
      * Only used in `this.ask()` - not used in `this.refresh()`
@@ -54,8 +54,6 @@ class ReadInput {
         this.writeNewLineWithPrompt(sentence)
     }
 
-    close() { return this.rl.close() }
-
     onKeypress(key: string, cb: Function) {
         process.stdin.on('keypress', (char, key) => {
             if (key.name == 'tab') cb()
@@ -80,8 +78,9 @@ class ReadInput {
             const doOneMore = await callback(msg)
             if (!doOneMore) break
         }
-        this.rl.close()
     }
+
+    close() { return this.rl.close() }
 }
 
 export default new ReadInput()
