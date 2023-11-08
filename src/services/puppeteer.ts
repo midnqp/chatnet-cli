@@ -1,4 +1,4 @@
-import puppeteer, { Page, Puppeteer } from 'puppeteer'
+import puppeteer, { EvaluateFunc, Page, Puppeteer } from 'puppeteer'
 import services from '@src/services/index.js'
 
 class ChatnetPuppeteerService {
@@ -13,7 +13,7 @@ class ChatnetPuppeteerService {
 
         const browser = await puppeteer.launch({
             headless: 'new',
-            executablePath: './dist/chromium/chrome.exe',
+            ignoreDefaultArgs: [ "--mute-audio"],
             args: ["--autoplay-policy=no-user-gesture-required", '--use-fake-ui-for-media-stream'],
         })
         console.log('browser file', browser.process()?.spawnfile)
@@ -36,7 +36,12 @@ class ChatnetPuppeteerService {
         return this.page.goto(url)
     }
 
-    async eval(funcString:string) {
+    onPageMessage(func:(data:any)=>void) {
+        if (!this.page) throw this.notInitializedError
+        return this.page.on('message', func)
+    }
+
+    async eval(funcString:EvaluateFunc<[]>|string) {
         if (!this.page) throw this.notInitializedError
         return this.page.evaluate(funcString)
     }

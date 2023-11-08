@@ -37,9 +37,9 @@ class ChatnetApiService {
         await c.close()
     }
 
-    public async makeRequest(data: Object) {
+    public async makeRequest(channelName:string, data: Object) {
         if (!this.client) throw this.notInitializedError
-        // todo: complete this and use this instead.
+        return this.client.emitWithAck(channelName, data)
     }
 
     // todo: refactor, services should be aloof of any business code

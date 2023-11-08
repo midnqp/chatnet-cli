@@ -14,7 +14,8 @@
     "baseUrl": "."
   },
   "include": [
-    "./src/**/*"
+    "./src/**/*",
+    "./.bin/**/*"
   ],
   "typeAcquisition": {
     "enable": true
