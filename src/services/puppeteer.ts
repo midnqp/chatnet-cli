@@ -16,7 +16,7 @@ class ChatnetPuppeteerService {
             ignoreDefaultArgs: [ "--mute-audio"],
             args: ["--autoplay-policy=no-user-gesture-required", '--use-fake-ui-for-media-stream'],
         })
-        console.log('browser file', browser.process()?.spawnfile)
+        services.logger.info('puppeteer executable file:', browser.process()?.spawnfile)
 
         this.page = await browser.newPage()
         

@@ -1,21 +1,9 @@
 import services from '@src/services/index.js'
 
-function puppeteerGetMyPeerjsId() {
-    const e = 'chatnet:connected'
-    const func = (resl: Function) => window.addEventListener(e, (ev: any) => resl(ev.detail.peerId))
-    return new Promise(func)
-}
-
-async function  handleSetAuthmetadata(id:unknown|string) {
-    console.log('got your peer id bro', id)
-    const auth = await services.config.get('auth')
-    services.api.makeRequest('auth-metadata', { auth, data: {peerjsId: id} })
-}
-
 class ChatnetChatCmd {
     constructor() { }
 
-    readyForCall?:Promise<void>
+    readyForCall?: Promise<void>
 
 
     async action() {
@@ -35,17 +23,27 @@ class ChatnetChatCmd {
 
         await services.puppeteer.init()
 
-        this.readyForCall= new Promise((async(resolve:Function) => {
+        this.readyForCall = new Promise((async (resolve: Function) => {
             await services.puppeteer.goto('https://chatnet-webrtc-client.midnqp.repl.co')
-            const peerjsId = await services.puppeteer.eval(puppeteerGetMyPeerjsId)
-            await handleSetAuthmetadata(peerjsId)
-            console.log(`okay guys, we're ready for call`)
+            const peerjsId = await services.puppeteer.eval(this.puppeteerGetMyPeerjsId)
+            await this.handleSetPeerjsId(peerjsId)
+            services.logger.info(`okay guys, we're ready for call`)
             resolve()
-        }))
-    
+        }).bind(this))
+
     }
 
+    puppeteerGetMyPeerjsId() {
+        const e = 'chatnet:connected'
+        const func = (resl: Function) => window.addEventListener(e, (ev: any) => resl(ev.detail.peerId))
+        return new Promise(func)
+    }
 
+    async handleSetPeerjsId(id: unknown | string) {
+        services.logger.info('my peerjs id is', id)
+        const auth = await services.config.get('auth')
+        services.api.makeRequest('auth-metadata', { auth, data: { peerjsId: id } })
+    }
 
 
     async handleUserInput(msg: string): Promise<boolean> {
@@ -72,26 +70,23 @@ class ChatnetChatCmd {
         return doOneMore
     }
 
-    async handleMessages(msg:string) {
+    async handleMessages(msg: string) {
         const auth = await services.config.get('auth')
-        services.api.makeRequest('message', {auth, type:'message', data:msg})
+        services.api.makeRequest('message', { auth, type: 'message', data: msg })
     }
 
     async handleCall(username: string) {
-
-        //const userdata =  await services.api.getUserData(username)
-        //if (userdata.peerConnId) {
-        console.log('calling username:', username)
+        services.logger.info('making voice call to username:', username)
         await this.readyForCall
         const auth = await services.config.get('auth')
-        const response = await services.api.makeRequest('get-data', {auth, data:{ about:'user-metadata', key:username}})
+        const response = await services.api.makeRequest('get-data', { auth, data: { about: 'user-metadata', key: username } })
         if (!response || !response?.data) {
-            services.stdoutee.print(`couldn't call `+username)
+            services.stdoutee.print(`couldn't call ` + username)
             return
         }
-        console.log('target calling peerid', response.data)
+        services.logger.info('make voice call to peerjs of id:', response.data)
         await services.puppeteer.eval([
-            `const eventInitDict = {detail:{peerId: '${response.data}'}};`, 
+            `const eventInitDict = {detail:{peerId: '${response.data}'}};`,
             `const event = new window.CustomEvent('chatnet:call:incoming', eventInitDict);`,
             `window.dispatchEvent(event);`
         ].join(''))
@@ -112,7 +107,7 @@ class ChatnetChatCmd {
         services.receive.close()
         services.stdoutee.close()
         services.api.close()
-        services.puppeteer.close()
+        this.readyForCall?.then(() => services.puppeteer.close())
     }
 }
 

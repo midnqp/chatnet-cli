@@ -5,6 +5,7 @@ import * as common from '@src/services/common.js'
 import api from '@src/services/api.js'
 import receive from '@src/services/receive.js'
 import puppeteer from '@src/services/puppeteer.js'
+import logger from '@src/services/logger.js'
 
 class ChatnetServices {
     linenoise = linenoise
@@ -14,6 +15,7 @@ class ChatnetServices {
     api= api
     receive= receive
     puppeteer = puppeteer
+    logger = logger
 }
 
 export default new ChatnetServices()

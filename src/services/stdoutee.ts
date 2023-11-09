@@ -27,7 +27,6 @@ class StdoutEventEmitter {
 
     private printEventListener(msg: string) {
         const sentence = services.linenoise.getLine()
-        //console.log('the sentence you wrote is', sentence)
 
         services.stdoutee.clearLine()
         services.linenoise.pause()
@@ -37,17 +36,8 @@ class StdoutEventEmitter {
     }
 
     private clearlineWriteEventListener(msg: string) {
-        //const line = services.linenoise.line
         services.stdoutee.clearLine()
-        // services.linenoise.pause()
-
         process.stdout.write(msg) // no new line added
-        // process.stdout.write(services.linenoise.prompt)
-
-        // services.linenoise.line = ''
-        // services.linenoise.cursor = 0
-        // services.linenoise.resume()
-        // services.linenoise.write(line)
     }
 }
 
