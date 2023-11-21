@@ -18,7 +18,7 @@ class ChatnetApiService {
 
     private client: null | ReturnType<Awaited<typeof importSocketio>['io']> = null
 
-    private notInitializedError: Error = new Error('ChatnetApiService not initialized, or has been already closed. Did you run `init()`?')
+    private notInitErrormsg: string = 'ChatnetApiService not initialized, or has been already closed. Did you run `init()`?'
 
     public async init(): Promise<void> {
         const socketio = await importSocketio
@@ -38,7 +38,7 @@ class ChatnetApiService {
     }
 
     public async makeRequest(channelName:string, data: Object) {
-        if (!this.client) throw this.notInitializedError
+        if (!this.client) throw Error(this.notInitErrormsg)
         return this.client.emitWithAck(channelName, data)
     }
 
@@ -46,7 +46,7 @@ class ChatnetApiService {
     public async setOrUpdateName(opts: { username: string, auth: string }): Promise<{ auth: string }> {
         const { username, auth } = opts
 
-        if (!this.client) throw this.notInitializedError
+        if (!this.client) throw Error(this.notInitErrormsg)
 
         return this.client.emitWithAck('auth', {
             auth,
@@ -56,7 +56,7 @@ class ChatnetApiService {
     }
 
     public on(eventName: string, callback: (...args: any[]) => void) {
-        if (!this.client) throw this.notInitializedError
+        if (!this.client) throw Error(this.notInitErrormsg)
         this.client.on(eventName, callback)
     }
 }
