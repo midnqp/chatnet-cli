@@ -4,23 +4,20 @@ import path from 'node:path'
 import os from 'node:os'
 
 class ChatnetLogger {
-    constructor() {
-        const logFile = path.join(os.homedir(), '.chatnet.log')
-        this.logger = pino(pino.destination(logFile))
-        //this.error = this.logger.error
-        //this.info = this.logger.info
-    }
+    private logger = pino(pino.destination(path.join(os.homedir(), '.chatnet.log')))
 
-    private logger
+    private nullLogger = pino({enabled:false})
 
     public error(...msg:any) {
+        if (!process.env.CHATNET_DEBUG) return 
         msg = msg.join(' ')
-        return this.logger.error(msg)
+        this.logger.error(msg)
     }
 
     public info(...msg:any){
+        if (!process.env.CHATNET_DEBUG) return
         msg=msg.join(' ')
-        return this.logger.info(msg)
+        this.logger.info(msg)
     }
 }
 
