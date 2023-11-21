@@ -21,11 +21,11 @@ class ChatnetPuppeteerService {
         this.page = await browser.newPage()
         
         this.page.on('console', (event) => {
-            services.stdoutee.print('puppeteer output: '+ event.text())
+            services.logger.info('puppeteer output: '+ event.text())
         })
         
         this.page.on('error', event => {
-            services.stdoutee.print('puppeteer output: '+ event)
+            services.logger.info('puppeteer output: '+ event)
         })
 
         return this.page
