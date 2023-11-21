@@ -3,8 +3,9 @@ import services from '@src/services/index.js'
 class ChatnetChatCmd {
     constructor() { }
 
-    readyForCall?: Promise<void>
+    exited = false
 
+    readyVoiceCall?: Promise<void>
 
     async action() {
         services.linenoise.getPrompt = async () => {
@@ -23,7 +24,7 @@ class ChatnetChatCmd {
 
         await services.puppeteer.init()
 
-        this.readyForCall = new Promise((async (resolve: Function) => {
+        this.readyVoiceCall = new Promise((async (resolve: Function) => {
             await services.puppeteer.goto('https://chatnet-webrtc-client.midnqp.repl.co')
             const peerjsId = await services.puppeteer.eval(this.puppeteerGetMyPeerjsId)
             await this.handleSetPeerjsId(peerjsId)
@@ -63,6 +64,8 @@ class ChatnetChatCmd {
                 break
             default:
                 // regular text messages
+                if (!msg) break
+
                 this.handleMessages(msg)
                 break
         }
@@ -77,7 +80,7 @@ class ChatnetChatCmd {
 
     async handleCall(username: string) {
         services.logger.info('making voice call to username:', username)
-        await this.readyForCall
+        await this.readyVoiceCall
         const auth = await services.config.get('auth')
         const response = await services.api.makeRequest('get-data', { auth, data: { about: 'user-metadata', key: username } })
         if (!response || !response?.data) {
@@ -102,12 +105,18 @@ class ChatnetChatCmd {
         }
     }
 
-    exit() {
+    async exit() {
+        if (this.exited) return
+
+        this.exited = true
         services.linenoise.close()
         services.receive.close()
         services.stdoutee.close()
-        services.api.close()
-        this.readyForCall?.then(() => services.puppeteer.close())
+        
+        this.readyVoiceCall?.then(async () => {
+            await services.puppeteer.close()
+            await services.api.close()
+        })
     }
 }
 
