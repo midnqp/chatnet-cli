@@ -1,5 +1,16 @@
 import services from "@src/services/index.js"
 
+let markdownTransform:(s:string)=>string
+let markdownToAnsi
+let chalk
+
+/** Await this variable before using ESM packages. */
+const importEsmPromise = (async function importEsm() {
+    chalk = (await import('chalk')).default
+    markdownToAnsi  = await import('markdown-to-ansi')
+    markdownTransform = markdownToAnsi.default({})
+})();
+
 type ChatnetMsg = {
     createdAt?: number | undefined;
     type: "message";
@@ -21,18 +32,25 @@ class ChatnetReceive {
         services.api.on('history', this.historyHandler)
     }
 
-    private broadcastHandler(msg: ChatnetMsg) {
-        services.stdoutee.print(msg.data)
+    private async broadcastHandler(msg: ChatnetMsg) {
+        await importEsmPromise
+        let result = `${msg.username}: ${msg.data}`
+        result = markdownTransform(result)
+        services.stdoutee.print(result)
     }
 
-    private historyHandler(msgList:Array<ChatnetMsg>) {
-        msgList.forEach(msg => services.stdoutee.print(msg.data))
+    private async historyHandler(msgList:Array<ChatnetMsg>) {
+        await importEsmPromise
+        msgList.forEach(msg => {
+            let result = `${msg.username}: ${msg.data}`
+            result = markdownTransform(result)
+            services.stdoutee.print(result)
+        })
     }
 
     close() {
         if (!this.isStarted) return
         this.isStarted = false
-        services.api.close()
     }
 }
 
