@@ -7,6 +7,7 @@
 	"scripts": {
 		"build": "tsc -p tsconfig.json && tsc-alias -p tsconfig.json",
 		"bundle": "esbuild --bundle dist/src/index.js --outfile=dist/bundle.cjs --format=cjs --platform=node",
+		"dev": "npm run build && node dist/src/index.js",
 		"package": "npx pkg -t node18 ./dist/bundle.cjs -o dist/package.bin",
 		"bbp": "npm run build && npm run bundle && npm run package"
 	},
