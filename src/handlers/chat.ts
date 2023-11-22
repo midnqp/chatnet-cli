@@ -1,5 +1,13 @@
 import services from '@src/services/index.js'
 
+let markdownTransform:(s:string)=>string
+
+/** Await this variable before using ESM packages. */
+const importEsmPromise = (async function importEsm() {
+    let markdownToAnsi  = await import('markdown-to-ansi')
+    markdownTransform = markdownToAnsi.default({})
+})();
+
 class ChatnetChatCmd {
     constructor() { }
 
@@ -62,9 +70,7 @@ class ChatnetChatCmd {
                 this.handleCall(msgSplit[1])
                 break
             default:
-                // regular text messages
-                if (!msg) break
-
+                // regular text messages             
                 this.handleMessages(msg)
                 break
         }
@@ -73,6 +79,13 @@ class ChatnetChatCmd {
     }
 
     async handleMessages(msg: string) {
+        msg = msg.trim()
+        if (!msg) return
+        await importEsmPromise
+        services.linenoise.eraseUserInput(msg)
+        const prompt = await services.linenoise.getPrompt()
+        const result = `${prompt}${msg}`
+        services.stdoutee.print(markdownTransform(result))
         services.api.makeRequest('message', {  type: 'message', data: msg })
     }
 
