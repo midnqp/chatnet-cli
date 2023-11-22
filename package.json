@@ -4,6 +4,8 @@
 	"bin": {
 		"chatnet-cli": "./dist/.bin/chatnet-cli.js"
 	},
+	"main": "./dist/src/index.js",
+	"files": ["dist"],
 	"scripts": {
 		"build": "tsc -p tsconfig.json && tsc-alias -p tsconfig.json",
 		"bundle": "esbuild --bundle dist/src/index.js --outfile=dist/bundle.cjs --format=cjs --platform=node",
