@@ -1,28 +1,16 @@
 <p align=center><img src="https://user-images.githubusercontent.com/50658760/234240342-e728c354-c168-4a39-a574-7df2e5cabe00.png"></p>
 
-This is an experimental text chat client application for the terminal. Binary executables are available for Linux in the **Release** page. The server code is written in Node.js and available [here](https://replit.com/@midnqp/chatnet-server) at Replit. As of now, this is a minimalist implementation and clients connect to a global Replit-hosted network. Work is underway to add features such as markdown text messages, voice clips, image, file share, and voice call.
+This is an experimental chat application that is designed to be non-blocking. 
 
-<p align=center> <img src="https://user-images.githubusercontent.com/50658760/233672086-88d9e1e6-a6fc-4ffd-924d-5ed1701cf0af.GIF"></p>
+Meaning, while writing a message in stdin the app can continue receiving messages and continue printing to stdout simultaneously. At first, this may sound obvious. For command-line applications, however, this isn't the case. Since reading input from the terminal is a synchronous operation, receiving messages ought to run asynchronously or in the background. In that case, if the app prints a received message _"Chatnet released yet?"_ when the user is typing a message to send _"How's been everyth..."_, then the resulting garbled text would be _"How's been everyth<b>Chatnet released yet?</b>ing?"_
+
+This project solves this problem.
+
+
+<p align=center> <img src="https://github.com/midnqp/chatnet-cli/assets/50658760/dcc5772f-36ef-46a5-b3d5-664853551668"></p>
 
 
 ### What's Unique ✨
-There's been always an effort in this project to not use [ncurses](https://invisible-island.net/ncurses/announce.html). Rather explore possibilities of cmdline applications without such interfaces that cover up the entire terminal screen. This idea is a challenge to implement, which could be why there are exceptionally few terminal interfaces that take stdin input while printing to stdout at the exact same time.
+To solve the problem, this project follows the async multiplexing approach as developed by [@antirez](https://github.com/antirez) on his [linenoise](https://github.com/antirez/linenoise) project. This allows for a minimal interface without hijacking the entire terminal screen as done by libraries like [ncurses](https://invisible-island.net/ncurses/announce.html). This idea is a challenge to implement, which could be why there are exceptionally few terminal interfaces that take stdin input while printing to stdout at the exact same time.
 
-### Build
-Pretty straightforward. Make sure to have CMake and dev deps installed.
-```sh
-sudo apt install libjson-c-dev uuid-dev libgc-dev libcmark-dev
-npm install
-mkdir dist
-npm run build:bin
-cd dist && cmake .. && make && cd ..
-# optional
-sudo mv dist/chatnet dist/chatnet-sio-client  /usr/local/bin/
-```
-
-For static binaries, simply replace the 5th line with:
-```sh
-cd dist && cmake -DCMAKE_BUILD_TYPE=Release .. && make && cd ..
-```
-
-To build and run on Windows, make sure to use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install).
+This approach may serve as an inspiration to build more sophisticated terminal applications that are more engaging and delightful to work with as developers!
