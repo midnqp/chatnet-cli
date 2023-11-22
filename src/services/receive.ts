@@ -2,11 +2,9 @@ import services from "@src/services/index.js"
 
 let markdownTransform:(s:string)=>string
 let markdownToAnsi
-let chalk
 
 /** Await this variable before using ESM packages. */
 const importEsmPromise = (async function importEsm() {
-    chalk = (await import('chalk')).default
     markdownToAnsi  = await import('markdown-to-ansi')
     markdownTransform = markdownToAnsi.default({})
 })();
