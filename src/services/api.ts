@@ -29,30 +29,20 @@ class ChatnetApiService {
         this.client = socketio.io(this.serverUrl, { auth: { auth } })
     }
 
-    public async close() {
+    public close() {
         if (!this.client) return
 
         const c = this.client
         this.client = null
-        await c.close()
+        c.close()
     }
 
-    public async makeRequest(channelName:string, data: Object) {
-        if (!this.client) throw Error(this.notInitErrormsg)
-        return this.client.emitWithAck(channelName, data)
-    }
-
-    // todo: refactor, services should be aloof of any business code
-    public async setOrUpdateName(opts: { username: string, auth: string }): Promise<{ auth: string }> {
-        const { username, auth } = opts
-
+    public async makeRequest(channelName:string, data: Record<string, any>) {
         if (!this.client) throw Error(this.notInitErrormsg)
 
-        return this.client.emitWithAck('auth', {
-            auth,
-            type: 'auth',
-            data: username
-        })
+        data['auth'] = await services.config.get('auth')
+        const result = this.client.emitWithAck(channelName, data)
+        return result
     }
 
     public on(eventName: string, callback: (...args: any[]) => void) {

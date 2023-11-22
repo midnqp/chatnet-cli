@@ -42,8 +42,7 @@ class ChatnetChatCmd {
 
     async handleSetPeerjsId(id: unknown | string) {
         services.logger.info('my peerjs id is', id)
-        const auth = await services.config.get('auth')
-        services.api.makeRequest('auth-metadata', { auth, data: { peerjsId: id } })
+        services.api.makeRequest('auth-metadata', { data: { peerjsId: id } })
     }
 
 
@@ -74,31 +73,29 @@ class ChatnetChatCmd {
     }
 
     async handleMessages(msg: string) {
-        const auth = await services.config.get('auth')
-        services.api.makeRequest('message', { auth, type: 'message', data: msg })
+        services.api.makeRequest('message', {  type: 'message', data: msg })
     }
 
     async handleCall(username: string) {
         services.logger.info('making voice call to username:', username)
         await this.readyVoiceCall
-        const auth = await services.config.get('auth')
-        const response = await services.api.makeRequest('get-data', { auth, data: { about: 'user-metadata', key: username } })
+
+        const response = await services.api.makeRequest('get-data', {data: { about: 'user-metadata', key: username } })
         if (!response || !response?.data) {
             services.stdoutee.print(`couldn't call ` + username)
             return
-        }
+        }        
         services.logger.info('make voice call to peerjs of id:', response.data)
+        
         await services.puppeteer.eval([
             `const eventInitDict = {detail:{peerId: '${response.data}'}};`,
             `const event = new window.CustomEvent('chatnet:call:incoming', eventInitDict);`,
             `window.dispatchEvent(event);`
-        ].join(''))
-        //}
+        ].join('\n'))
     }
 
     async handleSetName(username: string) {
-        const auth = await services.config.get('auth')
-        const { auth: authBearer } = await services.api.setOrUpdateName({ username, auth })
+        const { auth: authBearer } = await services.api.makeRequest('auth', { username })
         if (authBearer) {
             await services.config.set('auth', authBearer)
             await services.config.set('username', username)
@@ -115,7 +112,7 @@ class ChatnetChatCmd {
         
         this.readyVoiceCall?.then(async () => {
             await services.puppeteer.close()
-            await services.api.close()
+            services.api.close()
         })
     }
 }
