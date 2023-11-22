@@ -1,5 +1,6 @@
 {
 	"name": "chatnet-cli",
+	"version": "5.0.0",
 	"type": "commonjs",
 	"bin": {
 		"chatnet-cli": "./dist/.bin/chatnet-cli.js"
