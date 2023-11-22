@@ -4,7 +4,7 @@ import services from '@src/services/index.js'
 class ReadInput {
     constructor() { }
 
-    private rl = readline.promises.createInterface(process.stdin, process.stdout)
+    private rl = readline.promises.createInterface(process.stdin, process.stdout, undefined, true)
 
     public prompt = '> '
 
@@ -75,6 +75,21 @@ class ReadInput {
     async start(callback: (msg: string) => boolean | Promise<boolean>) {
         while (true) {
             const msg = await this.ask()
+            const promptLen = this.prompt.length
+            const len = msg.length + promptLen
+            let [x,y] = [0,-1]
+            //if (len > process.stdout.columns) {
+                const math = len / process.stdout.columns
+                const numLines = Math.floor(math)
+                const decimalPart = math - numLines
+                services.logger.info({decimalPart, numLines, len, promptLen, columns: process.stdout.columns, msg})
+                //if (decimalPart === 0) y-- // Last line is filled to brink and the cursor was in new line at x=0 // not needed
+                y = y + -numLines
+           //}
+            process.stdout.moveCursor(x,y)
+            for (let i=0; i >= y; i--) process.stdout.clearLine(0)
+            
+            
             const doOneMore = await callback(msg)
             if (!doOneMore) break
         }
