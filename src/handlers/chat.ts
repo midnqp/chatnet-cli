@@ -108,7 +108,7 @@ class ChatnetChatCmd {
     }
 
     async handleSetName(username: string) {
-        const { auth: authBearer } = await services.api.makeRequest('auth', { username })
+        const { auth: authBearer } = await services.api.makeRequest('auth', { data: username })
         if (authBearer) {
             await services.config.set('auth', authBearer)
             await services.config.set('username', username)
